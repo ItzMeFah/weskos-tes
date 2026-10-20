@@ -44,6 +44,42 @@ export default function Home() {
     return () => { window.clearTimeout(videoTimer); if (imageTimer) window.clearInterval(imageTimer); window.clearInterval(phraseTimer); };
   }, [content.heroImages.length, content.heroPhrases.length, content.heroVideoDurationSeconds, content.heroSlideIntervalSeconds]);
 
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion || !("IntersectionObserver" in window)) return;
+
+    const revealTargets = document.querySelectorAll<HTMLElement>([
+      ".intro-tag", ".intro-copy", ".intro-text", ".section-heading", ".shop-card",
+      ".photo-story-heading", ".photo-item", ".manifesto-image", ".manifesto-copy",
+      ".visit-copy-block", ".visit-photo", ".visit-contacts > a",
+    ].join(","));
+
+    revealTargets.forEach((element) => {
+      element.classList.add("scroll-reveal");
+      if (element.matches(".shop-card, .photo-item, .manifesto-image, .visit-photo, .intro-tag")) {
+        element.classList.add("scroll-reveal-image");
+      }
+      const siblings = Array.from(element.parentElement?.children ?? []);
+      const index = siblings.indexOf(element);
+      element.style.setProperty("--reveal-delay", `${Math.max(0, index) * 90}ms`);
+    });
+
+    document.documentElement.classList.add("scroll-reveal-ready");
+    const observer = new IntersectionObserver((entries, currentObserver) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-revealed");
+        currentObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -7% 0px" });
+
+    revealTargets.forEach((element) => observer.observe(element));
+    return () => {
+      observer.disconnect();
+      document.documentElement.classList.remove("scroll-reveal-ready");
+    };
+  }, []);
+
   const gallery = content.photos.gallery.map((src, index) => ({ src, label: galleryLabels[index] ?? `Weskos surf moment ${String(index + 1).padStart(2, "0")}` }));
 
   return <main>
