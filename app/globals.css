@@ -43,6 +43,9 @@ html{scroll-behavior:smooth;scroll-padding-top:104px;scrollbar-gutter:stable}
 
 /* Separate surf and product stories from the legal services landing page. */
 .legal-mark svg{width:29px;height:29px;fill:none;stroke:currentColor;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round}
+.services-dropdown .nav-menu{min-width:290px}
+.legal-service-card[id]{scroll-margin-top:110px}
+@media(max-width:700px){.services-dropdown .nav-menu{min-width:250px;max-height:65vh;overflow:auto}}
 .insights-page{min-height:100vh;background:var(--paper);color:var(--ink)}
 .insights-hero{padding:clamp(72px,10vw,136px) 10.5% 64px;max-width:1180px}
 .insights-hero .eyebrow{margin-bottom:20px;color:#8c7957}

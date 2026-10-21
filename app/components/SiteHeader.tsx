@@ -36,9 +36,9 @@ export default function SiteHeader() {
     <a href="/#home" className="site-brand" aria-label="Weskos Legal Co. home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
     <nav className="main-nav" aria-label="Main navigation">
       <a className="nav-link" href="/#home">Home</a>
-      <a className="nav-link" href="/#services">Services</a>
+      <div className="nav-dropdown services-dropdown"><a className="nav-link" href="/#services" aria-haspopup="true">Services</a><div className="nav-menu" aria-label="Weskos services"><a href="/#service-business">Company Formation &amp; PT PMA</a><a href="/#service-permits">Business Licensing &amp; Permits</a><a href="/#service-visa">Visa &amp; Immigration</a><a href="/#service-due-diligence">Property Due Diligence</a><a href="/#service-acquisition">Property Acquisition</a><a href="/#service-legal">Legal Consulting &amp; Disputes</a></div></div>
       <a className="nav-link" href="/#about">About</a>
-      <div className="nav-dropdown"><a className="nav-link" href="/insights" aria-haspopup="true">Insights</a><div className="nav-menu" aria-label="Insights pages"><a href="/insights/product">Product</a><a href="/insights/surf">Surf</a></div></div>
+      <div className="nav-dropdown insights-dropdown"><a className="nav-link" href="/insights/surf" aria-haspopup="true">Insights</a><div className="nav-menu" aria-label="Insights pages"><a href="/insights/product">Product</a><a href="/insights/surf">Surf</a></div></div>
       <a className="nav-link" href="/#contact">Contact</a>
     </nav>
     <div className="header-actions" aria-label="Contact and appearance">
