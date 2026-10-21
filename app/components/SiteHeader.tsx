@@ -33,7 +33,7 @@ export default function SiteHeader() {
   }
 
   return <header className="site-header">
-    <a href="#home" className="site-brand" aria-label="Weskos Surf & Co home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
+    <a href="#home" className="site-brand" aria-label="Weskos Legal Co. home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
     <nav className="main-nav" aria-label="Main navigation">
       <a className="nav-link" href="#home">Home</a>
       <a className="nav-link" href="#services">Services</a>

@@ -22,9 +22,9 @@ export const HOME_CONTENT_KEY = "home";
 export const HOME_CONTENT_STORAGE_KEY = "weskos-demo-home";
 
 export const DEFAULT_HOME_CONTENT: HomeContent = {
-  heroTitle: "Build in Krui.",
-  heroPhrases: ["Start your business with clarity.", "Make your next move with confidence.", "Know the land before you sign.", "Find your footing in Indonesia."],
-  heroLead: "Local guidance for business setup, stay permits, and property matters in Krui, Pesisir Barat.",
+  heroTitle: "Build with confidence.",
+  heroPhrases: ["Set up your PT PMA with clarity.", "Make your business legal in Indonesia.", "Explore property with local guidance.", "Extend your stay with confidence."],
+  heroLead: "Weskos Legal Co. helps Indonesian and foreign clients with company setup, permits, property matters, and visa extensions.",
   heroVideo: "/images/krui-surf-intro.mp4",
   heroVideoDurationSeconds: 4,
   heroSlideIntervalSeconds: 10,
@@ -37,8 +37,8 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
     manifesto: "/images/krui-coast-ride.jpg",
     storefront: "/images/storefront.jpeg",
   },
-  introTitle: "Good decisions start with local knowledge.",
-  introBody: "From business setup and stay permits to land due diligence, Weskos helps you understand the steps behind making Krui your next chapter.",
+  introTitle: "Legal support for doing business in Indonesia.",
+  introBody: "From setting up a local company or PT PMA to handling permits and reviewing a property purchase, Weskos Legal Co. supports both Indonesian clients and foreign nationals. We also assist foreign clients with visa extensions.",
 };
 
 export function normalizeHomeContent(value: Partial<HomeContent> | null | undefined): HomeContent {
@@ -51,11 +51,11 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     ...value,
     // Move the original surf-first defaults forward while preserving any copy
     // the Weskos team has already customized in Supabase or demo storage.
-    heroTitle: value?.heroTitle === "Ride the coast." ? DEFAULT_HOME_CONTENT.heroTitle : value?.heroTitle ?? DEFAULT_HOME_CONTENT.heroTitle,
-    heroLead: value?.heroLead?.startsWith("A home for boardriders on the edge of Sumatra.") ? DEFAULT_HOME_CONTENT.heroLead : value?.heroLead ?? DEFAULT_HOME_CONTENT.heroLead,
-    introTitle: value?.introTitle === "Made for life on the coast." ? DEFAULT_HOME_CONTENT.introTitle : value?.introTitle ?? DEFAULT_HOME_CONTENT.introTitle,
-    introBody: value?.introBody?.startsWith("Weskos is a local home for surf culture in Krui.") ? DEFAULT_HOME_CONTENT.introBody : value?.introBody ?? DEFAULT_HOME_CONTENT.introBody,
-    heroPhrases: Array.isArray(value?.heroPhrases) && value.heroPhrases.length && !value.heroPhrases.every((phrase, index) => phrase === ["Live the culture.", "Find your line in Krui.", "Chase the southern swell.", "Salt air, local spirit."][index]) ? value.heroPhrases : DEFAULT_HOME_CONTENT.heroPhrases,
+    heroTitle: ["Ride the coast.", "Build in Krui.", "Make your next move."].includes(value?.heroTitle ?? "") ? DEFAULT_HOME_CONTENT.heroTitle : value?.heroTitle ?? DEFAULT_HOME_CONTENT.heroTitle,
+    heroLead: value?.heroLead?.startsWith("A home for boardriders on the edge of Sumatra.") || value?.heroLead?.startsWith("Local guidance for business setup, stay permits, and property matters") || value?.heroLead?.startsWith("Legal and licensing support for local businesses") ? DEFAULT_HOME_CONTENT.heroLead : value?.heroLead ?? DEFAULT_HOME_CONTENT.heroLead,
+    introTitle: ["Made for life on the coast.", "Good decisions start with local knowledge.", "One local partner for business, property, and permits."].includes(value?.introTitle ?? "") ? DEFAULT_HOME_CONTENT.introTitle : value?.introTitle ?? DEFAULT_HOME_CONTENT.introTitle,
+    introBody: value?.introBody?.startsWith("Weskos is a local home for surf culture in Krui.") || value?.introBody?.startsWith("From business setup and stay permits to land due diligence") || value?.introBody?.startsWith("Weskos Legal Co. supports Indonesian clients and foreign nationals") ? DEFAULT_HOME_CONTENT.introBody : value?.introBody ?? DEFAULT_HOME_CONTENT.introBody,
+    heroPhrases: Array.isArray(value?.heroPhrases) && value.heroPhrases.length && !value.heroPhrases.every((phrase, index) => phrase === ["Live the culture.", "Find your line in Krui.", "Chase the southern swell.", "Salt air, local spirit."][index] || phrase === ["Start your business with clarity.", "Make your next move with confidence.", "Know the land before you sign.", "Find your footing in Indonesia."][index] || phrase === ["Set up your company with clarity.", "Navigate property with local guidance.", "Handle permits with confidence.", "Plan your visa extension."][index]) ? value.heroPhrases : DEFAULT_HOME_CONTENT.heroPhrases,
     heroImages: Array.isArray(value?.heroImages) && value.heroImages.length && !value.heroImages.every((photo, index) => photo === ["/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg"][index]) ? value.heroImages : DEFAULT_HOME_CONTENT.heroImages,
     heroVideoDurationSeconds: seconds(value?.heroVideoDurationSeconds, DEFAULT_HOME_CONTENT.heroVideoDurationSeconds, 0, 30),
     heroSlideIntervalSeconds: seconds(value?.heroSlideIntervalSeconds, DEFAULT_HOME_CONTENT.heroSlideIntervalSeconds, 3, 120),
