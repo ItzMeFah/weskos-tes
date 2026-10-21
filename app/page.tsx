@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "@/app/components/SiteHeader";
+import SiteFooter from "@/app/components/SiteFooter";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, HOME_CONTENT_STORAGE_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 const phone = "6282210631017";
 const whatsapp = `https://wa.me/${phone}?text=${encodeURIComponent("Hello Weskos Legal Co., I would like to ask about your legal services.")}`;
 const instagram = "https://instagram.com/weskos.legalservice";
-const map = "https://maps.app.goo.gl/YdS5ysiipLeA5PmXA";
+const map = "https://maps.app.goo.gl/4bhoLfCscugu52SW7?g_st=ipc";
 const Arrow = () => <span aria-hidden="true">↗</span>;
 
 export default function Home() {
@@ -113,10 +114,10 @@ export default function Home() {
     <section className="hero hero-carousel" id="home">
       <div className="hero-slides" aria-hidden="true">{heroSequence.map((item, index) => item.type === "video" ? <div key="hero-video" className={`hero-slide hero-video-slide ${index === heroIndex ? "is-visible" : ""}`}><video ref={heroVideoRef} className="hero-video" src={content.heroVideo} poster={content.heroImages[0]} muted playsInline preload="none" onError={() => setVideoAvailable(false)} /></div> : <div key={`${item.src}-${index}`} className={`hero-slide hero-slide-${item.imageIndex + 1} ${index === heroIndex ? "is-visible" : ""}`} style={{ backgroundImage: `url("${item.src}")` }} />)}</div>
       <div className="hero-shade" />
-      <div className="hero-copy"><p className="eyebrow light">WESKOS LEGAL CO. · KRUI, SUMATRA</p><h1>{content.heroTitle}<br/><em key={phraseIndex} className="phrase-fade">{content.heroPhrases[phraseIndex]}</em></h1><p className="hero-sub">{content.heroLead}</p><div className="hero-actions"><a className="button button-lime" href="#services">See how we can help <span>↓</span></a><a className="text-link light-link" href={whatsapp}>Talk to our team <Arrow /></a></div></div>
-      <div className="hero-note"><span>LOCAL KNOWLEDGE · CLEAR GUIDANCE</span><span>KRUI, PESISIR BARAT · INDONESIA</span></div>
+      <div className="hero-copy"><h1>{content.heroTitle}<br/><em key={phraseIndex} className="phrase-fade">{content.heroPhrases[phraseIndex]}</em></h1><div className="hero-actions"><a className="button button-lime" href="#services">See how we can help <span>↓</span></a></div></div>
+      <div className="hero-note"><span>KRUI, PESISIR BARAT · INDONESIA</span></div>
     </section>
-    <section className="intro section-pad" id="about"><div className="intro-tag"><span className="legal-mark" aria-hidden="true"><span>WK</span><i/></span><span>BUSINESS · VISA<br/>PERMITS · PROPERTY</span></div><div className="intro-copy"><p className="eyebrow">WESKOS LEGAL CO.</p><h2>{content.introTitle}</h2></div><div className="intro-text"><p>{content.introBody}</p><a className="text-link" href={instagram}>Get to know Weskos <Arrow /></a></div></section>
+    <section className="intro section-pad" id="about"><div className="intro-tag"><img className="passport-stack" src="/images/passport-stack.png" alt=""/><span>BUSINESS · VISA<br/>PERMITS · PROPERTY</span></div><div className="intro-copy"><p className="eyebrow">WESKOS LEGAL CO.</p><h2>{content.introTitle}</h2></div><div className="intro-text"><p>{content.introBody}</p><a className="text-link" href={instagram}>Get to know Weskos <Arrow /></a></div></section>
     <section className="legal-services" id="services"><div className="section-heading"><div><p className="eyebrow">FOR LOCAL & INTERNATIONAL CLIENTS</p><h2>Clear guidance.<br/>A confident next step.</h2></div><p>From setting up a company to navigating property matters and permits, get practical support from a team that knows the area.</p></div><div className="legal-service-grid">
       <article className="legal-service-card" id="service-business"><span className="legal-service-number">01</span><p className="eyebrow">BUSINESS SETUP</p><h3>Company formation & PT PMA</h3><p>Set up a local company or establish a PT PMA for foreign investment, with guidance through the required steps.</p><a href="/services/company-formation">Explore this service <Arrow /></a></article>
       <article className="legal-service-card" id="service-permits"><span className="legal-service-number">02</span><p className="eyebrow">LICENSING</p><h3>Business permits</h3><p>Help navigating business licenses, registrations, and ongoing legal administration in Indonesia.</p><a href="/services/business-permits">Explore this service <Arrow /></a></article>
@@ -127,7 +128,7 @@ export default function Home() {
     </div></section>
     <section className="manifesto"><div className="manifesto-image" style={{ backgroundImage: `url("${content.photos.manifesto}")` }}><span className="image-caption">PESISIR BARAT · SOUTH SUMATRA</span></div><div className="manifesto-copy"><p className="eyebrow light">LOCAL KNOWLEDGE, PERSONAL GUIDANCE</p><h2>Understand the process.<br/>Move forward with confidence.</h2><p>Company setup, permits, property checks, or visa extensions can raise a lot of questions. Tell us what you are planning and our team will help you find a clear place to start.</p><a className="button button-outline" href={whatsapp}>Talk to our team <Arrow /></a><div className="manifesto-stamp">WESKOS<br/>KRUI<br/>INDONESIA</div></div></section>
     <section className="visit section-pad" id="contact"><div className="visit-layout"><div className="visit-copy-block"><p className="eyebrow">START WITH A CONVERSATION</p><h2>Let's talk about<br/>your plans in Krui.</h2><p className="visit-copy">Share what you are working toward. We can help you understand the next step.</p><p className="visit-address">Jl. Jaya Wijaya Kp. Jawa, Pesisir Tengah, Pesisir Barat, Lampung 34874</p><a className="button button-dark" href={whatsapp}>Message Weskos <Arrow /></a></div><a className="visit-photo" href={map} aria-label="Open Weskos location in Google Maps"><img src={content.photos.storefront} alt="Weskos location in Pesisir Barat"/><span className="map-chip"><small>GOOGLE MAPS · KRUI</small><b>Find Weskos in Pesisir Barat <Arrow /></b></span></a></div><div className="visit-contacts"><a href={whatsapp}><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.3-4.7a8.5 8.5 0 1 1 16.2-4Z"/><path d="M8 8c.3-.5.6-.6.9-.6h.5l1 2c.1.3 0 .5-.1.7l-.6.6c.6 1.2 1.5 2 2.7 2.6l.7-.7c.2-.2.4-.2.7-.1l1.8.9c.3.2.4.3.3.6-.1.7-.8 1.3-1.5 1.5-1 .3-2.2-.2-3.4-.8-1.9-1-3.2-2.8-3.6-4.1-.3-1.1.1-2 .6-2.6Z"/></svg></span><b>WhatsApp</b><small>+62 822 1063 1017</small></a><a href="mailto:weskossurf@gmail.com"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6"/></svg></span><b>Email</b><small>weskossurf@gmail.com</small></a><a href={instagram} target="_blank" rel="noreferrer"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.7" cy="6.7" r=".8"/></svg></span><b>Instagram</b><small>@weskos.legalservice</small></a></div></section>
-    <footer className="footer"><a href="#home" className="footer-logo"><img src="/images/weskos-logo.png" alt="Weskos" /></a><span>LEGAL CO. · KRUI, INDONESIA</span><span>© 2026 Weskos</span><a href="/photo-credits">PHOTO CREDITS</a><a href="/backoffice">ADMIN</a><a href={instagram} target="_blank" rel="noreferrer">INSTAGRAM <Arrow /></a></footer>
+    <SiteFooter />
   </main>;
 }
 

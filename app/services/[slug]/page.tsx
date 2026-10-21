@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import SiteHeader from "@/app/components/SiteHeader";
+import SiteFooter from "@/app/components/SiteFooter";
 
 const whatsappBase = "https://wa.me/6282210631017?text=";
 
@@ -53,5 +54,6 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
     <section className="service-detail-steps"><p className="eyebrow">A CLEAR PLACE TO START</p><h2>We’ll take it one step at a time.</h2><div className="service-step-grid">{service.steps.map((item, index) => <article key={item}><span>0{index + 1}</span><h3>{item}</h3></article>)}</div></section>
     <section className="service-detail-cta"><p className="eyebrow">HAVE A QUESTION?</p><h2>Tell us what you’re working on.</h2><a className="button button-dark" href={`${whatsappBase}${message}`}>Talk to the Weskos team <span aria-hidden="true">↗</span></a></section>
     <nav className="service-detail-related" aria-label="Other Weskos services"><span>EXPLORE OTHER SERVICES</span>{Object.entries(services).filter(([key]) => key !== slug).map(([key, item]) => <a href={`/services/${key}`} key={key}>{item.nav} <span aria-hidden="true">↗</span></a>)}</nav>
+    <SiteFooter />
   </main>;
 }
