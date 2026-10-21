@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
+import ServiceScrollReveal from "@/app/components/ServiceScrollReveal";
 
 const whatsappBase = "https://wa.me/6282210631017?text=";
 
@@ -45,15 +46,16 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
 
   return <main className="service-detail-page">
     <SiteHeader />
-    <div className="service-breadcrumb"><a href="/">Home</a><span>/</span><a href="/#services">Services</a><span>/</span><span>{service.nav}</span></div>
+    <ServiceScrollReveal />
+    <div className="service-breadcrumb" data-service-reveal="text"><a href="/">Home</a><span>/</span><a href="/#services">Services</a><span>/</span><span>{service.nav}</span></div>
     <section className="service-detail-hero">
-      <div className="service-detail-heading"><p className="eyebrow">{service.eyebrow} · WESKOS LEGAL CO.</p><span className="service-detail-number">{service.number} / 06</span><h1>{service.title}</h1><p>{service.intro}</p><a className="button button-dark" href={`${whatsappBase}${message}`}>Discuss this service <span aria-hidden="true">↗</span></a></div>
-      <div className="service-detail-image"><img src={service.image} alt={service.alt}/><span>LOCAL KNOWLEDGE · KRUI, SUMATRA</span></div>
+      <div className="service-detail-heading" data-service-reveal="text"><p className="eyebrow">{service.eyebrow} · WESKOS LEGAL CO.</p><span className="service-detail-number">{service.number} / 06</span><h1>{service.title}</h1><p>{service.intro}</p><a className="button button-dark" href={`${whatsappBase}${message}`}>Discuss this service <span aria-hidden="true">↗</span></a></div>
+      <div className="service-detail-image" data-service-reveal="image"><img src={service.image} alt={service.alt}/><span>LOCAL KNOWLEDGE · KRUI, SUMATRA</span></div>
     </section>
-    <section className="service-detail-overview" id="service-overview"><div><p className="eyebrow">HOW WE CAN HELP</p><h2>{service.sectionTitle}</h2></div><div className="service-detail-overview-copy"><p>{service.sectionCopy}</p><ul>{service.help.map((item) => <li key={item}>{item}</li>)}</ul></div></section>
-    <section className="service-detail-steps"><p className="eyebrow">A CLEAR PLACE TO START</p><h2>We’ll take it one step at a time.</h2><div className="service-step-grid">{service.steps.map((item, index) => <article key={item}><span>0{index + 1}</span><h3>{item}</h3></article>)}</div></section>
-    <section className="service-detail-cta"><p className="eyebrow">HAVE A QUESTION?</p><h2>Tell us what you’re working on.</h2><a className="button button-dark" href={`${whatsappBase}${message}`}>Talk to the Weskos team <span aria-hidden="true">↗</span></a></section>
-    <nav className="service-detail-related" aria-label="Other Weskos services"><span>EXPLORE OTHER SERVICES</span>{Object.entries(services).filter(([key]) => key !== slug).map(([key, item]) => <a href={`/services/${key}`} key={key}>{item.nav} <span aria-hidden="true">↗</span></a>)}</nav>
+    <section className="service-detail-overview" id="service-overview"><div data-service-reveal="text"><p className="eyebrow">HOW WE CAN HELP</p><h2>{service.sectionTitle}</h2></div><div className="service-detail-overview-copy" data-service-reveal="text"><p>{service.sectionCopy}</p><ul>{service.help.map((item) => <li key={item}>{item}</li>)}</ul></div></section>
+    <section className="service-detail-steps"><p className="eyebrow" data-service-reveal="text">A CLEAR PLACE TO START</p><h2 data-service-reveal="text">We’ll take it one step at a time.</h2><div className="service-step-grid">{service.steps.map((item, index) => <article key={item} data-service-reveal="item"><span>0{index + 1}</span><h3>{item}</h3></article>)}</div></section>
+    <section className="service-detail-cta"><p className="eyebrow" data-service-reveal="text">HAVE A QUESTION?</p><h2 data-service-reveal="text">Tell us what you’re working on.</h2><a className="button button-dark" data-service-reveal="text" href={`${whatsappBase}${message}`}>Talk to the Weskos team <span aria-hidden="true">↗</span></a></section>
+    <nav className="service-detail-related" aria-label="Other Weskos services"><span data-service-reveal="text">EXPLORE OTHER SERVICES</span>{Object.entries(services).filter(([key]) => key !== slug).map(([key, item]) => <a href={`/services/${key}`} key={key} data-service-reveal="item">{item.nav} <span aria-hidden="true">↗</span></a>)}</nav>
     <SiteFooter />
   </main>;
 }
