@@ -31,6 +31,15 @@ const credits = [
     license: "https://creativecommons.org/publicdomain/zero/1.0/",
     licenseName: "CC0 1.0",
   },
+  {
+    image: "/images/pulau-pisang-view.jpg",
+    alt: "Coastal view of Pulau Pisang, Krui, Pesisir Barat",
+    title: "View from the right side of Pulau Pisang",
+    author: "Kibe00",
+    source: "https://commons.wikimedia.org/wiki/File:View_dari_Sebelah_Kanan_Pulau_Pisang.jpg",
+    license: "https://creativecommons.org/licenses/by/4.0/",
+    licenseName: "CC BY 4.0",
+  },
 ];
 
 export default function PhotoCredits() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SiteHeader from "@/app/components/SiteHeader";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, HOME_CONTENT_STORAGE_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
@@ -14,9 +14,11 @@ const Arrow = () => <span aria-hidden="true">↗</span>;
 
 export default function Home() {
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
-  const [imageIndex, setImageIndex] = useState(0);
+  const [heroIndex, setHeroIndex] = useState(0);
   const [phraseIndex, setPhraseIndex] = useState(0);
-  const [videoVisible, setVideoVisible] = useState(true);
+  const [videoAvailable, setVideoAvailable] = useState(true);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const demo = localStorage.getItem(HOME_CONTENT_STORAGE_KEY);
@@ -27,22 +29,49 @@ export default function Home() {
       void supabase.from("site_content").select("content").eq("id", HOME_CONTENT_KEY).maybeSingle()
         .then(({ data }) => { if (data?.content) setContent(normalizeHomeContent(data.content)); });
     }
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let imageTimer: number | undefined;
-    setImageIndex(0);
-    // Reduced-motion settings may skip autoplay and fades, but must not stop
-    // the hero slideshow itself.
-    setVideoVisible(!reducedMotion);
-    const startSlideshow = () => {
-      setVideoVisible(false);
-      if (content.heroImages.length > 1) {
-        imageTimer = window.setInterval(() => setImageIndex((index) => (index + 1) % content.heroImages.length), content.heroSlideIntervalSeconds * 1000);
-      }
+    setPrefersReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
+
+  const showHeroVideo = Boolean(content.heroVideo) && videoAvailable && !prefersReducedMotion;
+  const heroSequence: ({ type: "image"; src: string; imageIndex: number } | { type: "video" })[] = [
+    ...content.heroImages.slice(0, 4).map((src, imageIndex) => ({ type: "image" as const, src, imageIndex })),
+    ...(showHeroVideo ? [{ type: "video" as const }] : []),
+    ...content.heroImages.slice(4).map((src, index) => ({ type: "image" as const, src, imageIndex: index + 4 })),
+  ];
+
+  useEffect(() => {
+    if (!heroSequence.length) return;
+    let timer: number;
+    const advanceAfter = (index: number) => {
+      const isVideoSlide = showHeroVideo && index === 4;
+      const duration = isVideoSlide ? content.heroVideoDurationSeconds : content.heroSlideIntervalSeconds;
+      timer = window.setTimeout(() => {
+        const next = (index + 1) % heroSequence.length;
+        setHeroIndex(next);
+        advanceAfter(next);
+      }, duration * 1000);
     };
-    const videoTimer = window.setTimeout(startSlideshow, reducedMotion ? 0 : content.heroVideoDurationSeconds * 1000);
+
+    setHeroIndex(0);
+    advanceAfter(0);
+    return () => window.clearTimeout(timer);
+  }, [content.heroImages, content.heroSlideIntervalSeconds, content.heroVideoDurationSeconds, showHeroVideo]);
+
+  useEffect(() => {
     const phraseTimer = window.setInterval(() => setPhraseIndex((index) => (index + 1) % content.heroPhrases.length), 4000);
-    return () => { window.clearTimeout(videoTimer); if (imageTimer) window.clearInterval(imageTimer); window.clearInterval(phraseTimer); };
-  }, [content.heroImages.length, content.heroPhrases.length, content.heroVideoDurationSeconds, content.heroSlideIntervalSeconds]);
+    return () => window.clearInterval(phraseTimer);
+  }, [content.heroPhrases.length]);
+
+  useEffect(() => {
+    const video = heroVideoRef.current;
+    if (!video) return;
+    if (showHeroVideo && heroIndex === 4) {
+      video.currentTime = 0;
+      void video.play().catch(() => setVideoAvailable(false));
+    } else {
+      video.pause();
+    }
+  }, [heroIndex, showHeroVideo]);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -86,8 +115,7 @@ export default function Home() {
   return <main>
     <SiteHeader />
     <section className="hero hero-carousel" id="home">
-      <div className="hero-slides" aria-hidden="true">{content.heroImages.map((src, index) => <div key={`${src}-${index}`} className={`hero-slide hero-slide-${index + 1} ${index === imageIndex ? "is-visible" : ""}`} style={{ backgroundImage: `url("${src}")` }} />)}</div>
-      {videoVisible && content.heroVideo && <video className="hero-video" src={content.heroVideo} poster={content.heroImages[0]} autoPlay muted playsInline preload="auto" aria-hidden="true" onError={() => setVideoVisible(false)} />}
+      <div className="hero-slides" aria-hidden="true">{heroSequence.map((item, index) => item.type === "video" ? <div key="hero-video" className={`hero-slide hero-video-slide ${index === heroIndex ? "is-visible" : ""}`}><video ref={heroVideoRef} className="hero-video" src={content.heroVideo} poster={content.heroImages[0]} muted playsInline preload="none" onError={() => setVideoAvailable(false)} /></div> : <div key={`${item.src}-${index}`} className={`hero-slide hero-slide-${item.imageIndex + 1} ${index === heroIndex ? "is-visible" : ""}`} style={{ backgroundImage: `url("${item.src}")` }} />)}</div>
       <div className="hero-shade" />
       <div className="hero-copy"><p className="eyebrow light">WESKOS LEGAL CO. · KRUI, SUMATRA</p><h1>{content.heroTitle}<br/><em key={phraseIndex} className="phrase-fade">{content.heroPhrases[phraseIndex]}</em></h1><p className="hero-sub">{content.heroLead}</p><div className="hero-actions"><a className="button button-lime" href="#services">See how we can help <span>↓</span></a><a className="text-link light-link" href={whatsapp}>Talk to our team <Arrow /></a></div></div>
       <div className="hero-note"><span>LOCAL KNOWLEDGE · CLEAR GUIDANCE</span><span>KRUI, PESISIR BARAT · INDONESIA</span></div>

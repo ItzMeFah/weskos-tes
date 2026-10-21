@@ -28,7 +28,7 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroVideo: "/images/krui-surf-intro.mp4",
   heroVideoDurationSeconds: 4,
   heroSlideIntervalSeconds: 10,
-  heroImages: ["/images/krui-bukit-barisan.jpg", "/images/pulau-pisang-coast.jpg", "/images/krui-wave-rider.jpg", "/images/pulau-pisang-beach.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
+  heroImages: ["/images/krui-bukit-barisan.jpg", "/images/pulau-pisang-coast.jpg", "/images/pulau-pisang-beach.jpg", "/images/pulau-pisang-view.jpg", "/images/krui-wave-rider.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
   photos: {
     apparel: "/images/weskos-local-team.jpg",
     surfGoods: "/images/fishing-day.jpg",
@@ -65,6 +65,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     ["/images/krui-coast-ride.jpg", "/images/wave-rider-wide.jpg", "/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
       ["/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg"],
       ["/images/krui-wave-rider.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
+      ["/images/krui-bukit-barisan.jpg", "/images/pulau-pisang-coast.jpg", "/images/krui-wave-rider.jpg", "/images/pulau-pisang-beach.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
     ].some((legacy) => value.heroImages!.length === legacy.length && value.heroImages!.every((photo, index) => photo === legacy[index]))
       ? DEFAULT_HOME_CONTENT.heroImages
       : Array.isArray(value?.heroImages) && value.heroImages.length
