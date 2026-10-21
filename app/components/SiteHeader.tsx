@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const phone = "6282210631017";
 const whatsapp = `https://wa.me/${phone}`;
-const instagram = "https://instagram.com/weskos_surfco";
+const instagram = "https://instagram.com/weskos.legalservice";
 
 function Icon({ name }: { name: "whatsapp" | "instagram" | "mail" | "moon" | "sun" }) {
   if (name === "whatsapp") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.3-4.7a8.5 8.5 0 1 1 16.2-4Z"/><path d="M8.4 7.8c.3-.6.6-.6.9-.6h.5c.2 0 .4.1.5.5l.8 1.9c.1.2 0 .4-.1.6l-.6.7c-.2.2-.2.3-.1.5.4.7 1 1.4 1.8 1.9.7.5 1.3.7 1.6.8.2.1.4 0 .5-.1l.8-.9c.2-.2.4-.2.6-.1l1.8.9c.2.1.4.2.4.4 0 .3-.2 1.1-.8 1.6-.5.5-1.2.7-1.8.6-.7-.1-1.7-.4-2.9-1.1-1.5-.9-2.7-2.1-3.4-3.1-.7-.9-1.2-2-1.2-2.8 0-.7.4-1.4.7-1.7Z"/></svg>;
@@ -36,9 +36,10 @@ export default function SiteHeader() {
     <a href="#home" className="site-brand" aria-label="Weskos Surf & Co home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
     <nav className="main-nav" aria-label="Main navigation">
       <a className="nav-link" href="#home">Home</a>
-      <div className="nav-dropdown"><a className="nav-link" href="#shop">Shop & services</a><div className="nav-menu"><a href="#shop">Surf apparel</a><a href="#shop">Surf goods</a><a href="#visit">Boardriders service</a></div></div>
-      <a className="nav-link" href="#story">About</a>
-      <a className="nav-link" href="#visit">Find us</a>
+      <a className="nav-link" href="#services">Services</a>
+      <a className="nav-link" href="#about">About</a>
+      <a className="nav-link" href="#insights">Insights</a>
+      <a className="nav-link" href="#contact">Contact</a>
     </nav>
     <div className="header-actions" aria-label="Contact and appearance">
       <a href={whatsapp} aria-label="WhatsApp"><Icon name="whatsapp"/></a>
