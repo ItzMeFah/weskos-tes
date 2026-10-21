@@ -28,13 +28,13 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroVideo: "/images/krui-surf-intro.mp4",
   heroVideoDurationSeconds: 4,
   heroSlideIntervalSeconds: 10,
-  heroImages: ["/images/krui-coast-ride.jpg", "/images/wave-rider-wide.jpg", "/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
+  heroImages: ["/images/instagram-krui-surf.webp", "/images/instagram-krui-green.webp", "/images/krui-coast-ride.jpg", "/images/wave-rider-wide.jpg", "/images/krui-wave-rider.jpg"],
   photos: {
-    apparel: "/images/krui-coast-ride.jpg",
-    surfGoods: "/images/krui-wave-rider.jpg",
+    apparel: "/images/instagram-krui-green.webp",
+    surfGoods: "/images/instagram-krui-surf.webp",
     gallery: ["/images/wave-rider-wide.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/barrel-session.jpg"],
     boardArtwork: "/images/surfboard-stencil-trio.png",
-    manifesto: "/images/krui-coast-ride.jpg",
+    manifesto: "/images/instagram-krui-green.webp",
     storefront: "/images/storefront.jpeg",
   },
   introTitle: "Legal support for doing business in Indonesia.",
@@ -56,16 +56,23 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     introTitle: ["Made for life on the coast.", "Good decisions start with local knowledge.", "One local partner for business, property, and permits."].includes(value?.introTitle ?? "") ? DEFAULT_HOME_CONTENT.introTitle : value?.introTitle ?? DEFAULT_HOME_CONTENT.introTitle,
     introBody: value?.introBody?.startsWith("Weskos is a local home for surf culture in Krui.") || value?.introBody?.startsWith("From business setup and stay permits to land due diligence") || value?.introBody?.startsWith("Weskos Legal Co. supports Indonesian clients and foreign nationals") ? DEFAULT_HOME_CONTENT.introBody : value?.introBody ?? DEFAULT_HOME_CONTENT.introBody,
     heroPhrases: Array.isArray(value?.heroPhrases) && value.heroPhrases.length && !value.heroPhrases.every((phrase, index) => phrase === ["Live the culture.", "Find your line in Krui.", "Chase the southern swell.", "Salt air, local spirit."][index] || phrase === ["Start your business with clarity.", "Make your next move with confidence.", "Know the land before you sign.", "Find your footing in Indonesia."][index] || phrase === ["Set up your company with clarity.", "Navigate property with local guidance.", "Handle permits with confidence.", "Plan your visa extension."][index]) ? value.heroPhrases : DEFAULT_HOME_CONTENT.heroPhrases,
-    heroImages: Array.isArray(value?.heroImages) && value.heroImages.length && !value.heroImages.every((photo, index) => photo === ["/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg"][index]) ? value.heroImages : DEFAULT_HOME_CONTENT.heroImages,
+    heroImages: Array.isArray(value?.heroImages) && value.heroImages.length && ![
+    ["/images/krui-coast-ride.jpg", "/images/wave-rider-wide.jpg", "/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
+      ["/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg"],
+    ].some((legacy) => value.heroImages!.length === legacy.length && value.heroImages!.every((photo, index) => photo === legacy[index])) ? value.heroImages : DEFAULT_HOME_CONTENT.heroImages,
     heroVideoDurationSeconds: seconds(value?.heroVideoDurationSeconds, DEFAULT_HOME_CONTENT.heroVideoDurationSeconds, 0, 30),
     heroSlideIntervalSeconds: seconds(value?.heroSlideIntervalSeconds, DEFAULT_HOME_CONTENT.heroSlideIntervalSeconds, 3, 120),
     photos: {
       ...DEFAULT_HOME_CONTENT.photos,
       ...value?.photos,
-      apparel: value?.photos?.apparel === "/images/apparel-rack.jpeg" ? DEFAULT_HOME_CONTENT.photos.apparel : value?.photos?.apparel ?? DEFAULT_HOME_CONTENT.photos.apparel,
-      surfGoods: value?.photos?.surfGoods === "/images/store-products.jpeg" ? DEFAULT_HOME_CONTENT.photos.surfGoods : value?.photos?.surfGoods ?? DEFAULT_HOME_CONTENT.photos.surfGoods,
-      manifesto: value?.photos?.manifesto === "/images/store-sign.jpeg" ? DEFAULT_HOME_CONTENT.photos.manifesto : value?.photos?.manifesto ?? DEFAULT_HOME_CONTENT.photos.manifesto,
-      gallery: Array.isArray(value?.photos?.gallery) && !value.photos.gallery.every((photo, index) => photo === ["/images/weskos-surf-tee.jpg", "/images/krui-coast-ride.jpg", "/images/weskos-tshirt-art.jpg", "/images/tropical-sumatera-shirt.jpg"][index]) ? value.photos.gallery.filter((item): item is string => typeof item === "string") : DEFAULT_HOME_CONTENT.photos.gallery,
+      apparel: ["/images/apparel-rack.jpeg", "/images/krui-coast-ride.jpg"].includes(value?.photos?.apparel ?? "") ? DEFAULT_HOME_CONTENT.photos.apparel : value?.photos?.apparel ?? DEFAULT_HOME_CONTENT.photos.apparel,
+      surfGoods: ["/images/store-products.jpeg", "/images/krui-wave-rider.jpg"].includes(value?.photos?.surfGoods ?? "") ? DEFAULT_HOME_CONTENT.photos.surfGoods : value?.photos?.surfGoods ?? DEFAULT_HOME_CONTENT.photos.surfGoods,
+      manifesto: ["/images/store-sign.jpeg", "/images/krui-coast-ride.jpg"].includes(value?.photos?.manifesto ?? "") ? DEFAULT_HOME_CONTENT.photos.manifesto : value?.photos?.manifesto ?? DEFAULT_HOME_CONTENT.photos.manifesto,
+      gallery: Array.isArray(value?.photos?.gallery) && ![
+        ["/images/weskos-surf-tee.jpg", "/images/krui-coast-ride.jpg", "/images/weskos-tshirt-art.jpg", "/images/tropical-sumatera-shirt.jpg"],
+        ["/images/wave-rider-wide.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/barrel-session.jpg"],
+      ].some((legacy) => value.photos!.gallery!.length === legacy.length && value.photos!.gallery!.every((photo, index) => photo === legacy[index])) ? value.photos.gallery.filter((item): item is string => typeof item === "string") : DEFAULT_HOME_CONTENT.photos.gallery,
     },
   };
 }
+

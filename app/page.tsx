@@ -86,7 +86,7 @@ export default function Home() {
   return <main>
     <SiteHeader />
     <section className="hero hero-carousel" id="home">
-      <div className="hero-slides" aria-hidden="true">{content.heroImages.map((src, index) => <div key={`${src}-${index}`} className={`hero-slide ${index === imageIndex ? "is-visible" : ""}`} style={{ backgroundImage: `url("${src}")` }} />)}</div>
+      <div className="hero-slides" aria-hidden="true">{content.heroImages.map((src, index) => <div key={`${src}-${index}`} className={`hero-slide hero-slide-${index + 1} ${index === imageIndex ? "is-visible" : ""}`} style={{ backgroundImage: `url("${src}")` }} />)}</div>
       {videoVisible && content.heroVideo && <video className="hero-video" src={content.heroVideo} poster={content.heroImages[0]} autoPlay muted playsInline preload="auto" aria-hidden="true" onError={() => setVideoVisible(false)} />}
       <div className="hero-shade" />
       <div className="hero-copy"><p className="eyebrow light">WESKOS LEGAL CO. · KRUI, SUMATRA</p><h1>{content.heroTitle}<br/><em key={phraseIndex} className="phrase-fade">{content.heroPhrases[phraseIndex]}</em></h1><p className="hero-sub">{content.heroLead}</p><div className="hero-actions"><a className="button button-lime" href="#services">Explore our services <span>↓</span></a><a className="text-link light-link" href={whatsapp}>Talk to Weskos <Arrow /></a></div></div>
@@ -107,3 +107,4 @@ export default function Home() {
     <footer className="footer"><a href="#home" className="footer-logo"><img src="/images/weskos-logo.png" alt="Weskos" /></a><span>LEGAL CO. · KRUI, INDONESIA</span><span>© 2026 Weskos</span><a href="/backoffice">ADMIN</a><a href={instagram} target="_blank" rel="noreferrer">INSTAGRAM <Arrow /></a></footer>
   </main>;
 }
+
