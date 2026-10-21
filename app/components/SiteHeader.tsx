@@ -33,13 +33,13 @@ export default function SiteHeader() {
   }
 
   return <header className="site-header">
-    <a href="#home" className="site-brand" aria-label="Weskos Legal Co. home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
+    <a href="/#home" className="site-brand" aria-label="Weskos Legal Co. home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
     <nav className="main-nav" aria-label="Main navigation">
-      <a className="nav-link" href="#home">Home</a>
-      <a className="nav-link" href="#services">Services</a>
-      <a className="nav-link" href="#about">About</a>
-      <a className="nav-link" href="#insights">Insights</a>
-      <a className="nav-link" href="#contact">Contact</a>
+      <a className="nav-link" href="/#home">Home</a>
+      <a className="nav-link" href="/#services">Services</a>
+      <a className="nav-link" href="/#about">About</a>
+      <div className="nav-dropdown"><a className="nav-link" href="/insights" aria-haspopup="true">Insights</a><div className="nav-menu" aria-label="Insights pages"><a href="/insights/product">Product</a><a href="/insights/surf">Surf</a></div></div>
+      <a className="nav-link" href="/#contact">Contact</a>
     </nav>
     <div className="header-actions" aria-label="Contact and appearance">
       <a href={whatsapp} aria-label="WhatsApp"><Icon name="whatsapp"/></a>
