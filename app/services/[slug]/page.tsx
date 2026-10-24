@@ -3,7 +3,7 @@ import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 import ServiceScrollReveal from "@/app/components/ServiceScrollReveal";
 
-const whatsappBase = "https://wa.me/6282210631017?text=";
+const whatsappBase = "https://wa.me/6281511184631?text=";
 
 const services = {
   "company-formation": {

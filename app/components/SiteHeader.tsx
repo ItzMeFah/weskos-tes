@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const phone = "6282210631017";
+const phone = "6281511184631";
 const whatsapp = `https://wa.me/${phone}`;
 const instagram = "https://instagram.com/weskos.legalservice";
 
@@ -44,7 +44,7 @@ export default function SiteHeader() {
     <div className="header-actions" aria-label="Contact and appearance">
       <a href={whatsapp} aria-label="WhatsApp"><Icon name="whatsapp"/></a>
       <a href={instagram} aria-label="Instagram"><Icon name="instagram"/></a>
-      <a href="mailto:weskossurf@gmail.com" aria-label="Email"><Icon name="mail"/></a>
+      <a href="mailto:weskos.bventure@gmail.com" aria-label="Email"><Icon name="mail"/></a>
       <span className="header-divider" aria-hidden="true"/>
       <button className="theme-toggle" onClick={toggleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} aria-pressed={dark} title={dark ? "Switch to light mode" : "Switch to dark mode"}><Icon name={dark ? "sun" : "moon"}/></button>
     </div>

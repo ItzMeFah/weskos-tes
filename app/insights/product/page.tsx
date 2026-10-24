@@ -11,6 +11,6 @@ export default function ProductInsights() {
     <section className="insights-gallery product-gallery" aria-label="Weskos surf products">
       {products.map((item, index) => <figure className={`insights-gallery-item insights-gallery-item-${index + 1}`} key={item.src}><img src={item.src} alt={item.alt} loading="lazy"/><figcaption>{item.label}</figcaption></figure>)}
     </section>
-    <p className="insights-contact-note">Want to ask about an item? <a href="https://wa.me/6282210631017">Talk to Weskos ↗</a></p>
+    <p className="insights-contact-note">Want to ask about an item? <a href="https://wa.me/6281511184631">Talk to Weskos ↗</a></p>
   </InsightsFrame>;
 }
