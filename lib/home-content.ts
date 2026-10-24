@@ -19,7 +19,6 @@ export type HomeContent = {
 };
 
 export const HOME_CONTENT_KEY = "home";
-export const HOME_CONTENT_STORAGE_KEY = "weskos-demo-home";
 
 export const HERO_LANDSCAPE_IMAGES = [
   "/images/krui-bukit-barisan.jpg",
@@ -82,7 +81,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     ...DEFAULT_HOME_CONTENT,
     ...value,
     // Move the original surf-first defaults forward while preserving any copy
-    // the Weskos team has already customized in Supabase or demo storage.
+    // the Weskos team has already customized in Supabase.
     heroTitle: ["Ride the coast.", "Build in Krui.", "Build with confidence."].includes(value?.heroTitle ?? "") ? DEFAULT_HOME_CONTENT.heroTitle : value?.heroTitle ?? DEFAULT_HOME_CONTENT.heroTitle,
     heroLead: value?.heroLead?.startsWith("A home for boardriders on the edge of Sumatra.") || value?.heroLead?.startsWith("Local guidance for business setup, stay permits, and property matters") || value?.heroLead?.startsWith("Legal and licensing support for local businesses") || value?.heroLead?.startsWith("Weskos Legal Co. helps Indonesian and foreign clients") ? DEFAULT_HOME_CONTENT.heroLead : value?.heroLead ?? DEFAULT_HOME_CONTENT.heroLead,
     introTitle: ["Made for life on the coast.", "Good decisions start with local knowledge.", "One local partner for business, property, and permits.", "Legal support for doing business in Indonesia."].includes(value?.introTitle ?? "") ? DEFAULT_HOME_CONTENT.introTitle : value?.introTitle ?? DEFAULT_HOME_CONTENT.introTitle,

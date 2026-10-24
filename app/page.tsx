@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 import { supabase } from "@/lib/supabase";
-import { DEFAULT_HOME_CONTENT, HERO_SURF_IMAGES, HOME_CONTENT_KEY, HOME_CONTENT_STORAGE_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
+import { DEFAULT_HOME_CONTENT, HERO_SURF_IMAGES, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 const phone = "6281511184631";
 const email = "weskos.bventure@gmail.com";
@@ -22,10 +22,6 @@ export default function Home() {
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    const demo = localStorage.getItem(HOME_CONTENT_STORAGE_KEY);
-    if (demo) {
-      try { setContent(normalizeHomeContent(JSON.parse(demo))); } catch { /* Ignore stale local demo content. */ }
-    }
     if (supabase) {
       void supabase.from("site_content").select("content").eq("id", HOME_CONTENT_KEY).maybeSingle()
         .then(({ data }) => { if (data?.content) setContent(normalizeHomeContent(data.content)); });
