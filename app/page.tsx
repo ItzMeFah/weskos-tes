@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 import { supabase } from "@/lib/supabase";
-import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, HOME_CONTENT_STORAGE_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
+import { DEFAULT_HOME_CONTENT, HERO_SURF_IMAGES, HOME_CONTENT_KEY, HOME_CONTENT_STORAGE_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 const phone = "6282210631017";
 const whatsapp = `https://wa.me/${phone}?text=${encodeURIComponent("Hello Weskos Legal Co., I would like to ask about your legal services.")}`;
@@ -33,17 +33,22 @@ export default function Home() {
   }, []);
 
   const showHeroVideo = Boolean(content.heroVideo) && videoAvailable && !prefersReducedMotion;
+  const surfImageSet = new Set(HERO_SURF_IMAGES);
+  const indexedHeroImages = content.heroImages.map((src, imageIndex) => ({ src, imageIndex }));
+  const landscapeImages = indexedHeroImages.filter(({ src }) => !surfImageSet.has(src));
+  const surfImages = indexedHeroImages.filter(({ src }) => surfImageSet.has(src));
+  const videoSlideIndex = landscapeImages.length;
   const heroSequence: ({ type: "image"; src: string; imageIndex: number } | { type: "video" })[] = [
-    ...content.heroImages.slice(0, 4).map((src, imageIndex) => ({ type: "image" as const, src, imageIndex })),
+    ...landscapeImages.map(({ src, imageIndex }) => ({ type: "image" as const, src, imageIndex })),
     ...(showHeroVideo ? [{ type: "video" as const }] : []),
-    ...content.heroImages.slice(4).map((src, index) => ({ type: "image" as const, src, imageIndex: index + 4 })),
+    ...surfImages.map(({ src, imageIndex }) => ({ type: "image" as const, src, imageIndex })),
   ];
 
   useEffect(() => {
     if (!heroSequence.length) return;
     let timer: number;
     const advanceAfter = (index: number) => {
-      const isVideoSlide = showHeroVideo && index === 4;
+      const isVideoSlide = showHeroVideo && index === videoSlideIndex;
       const duration = isVideoSlide ? content.heroVideoDurationSeconds : content.heroSlideIntervalSeconds;
       timer = window.setTimeout(() => {
         const next = (index + 1) % heroSequence.length;
@@ -55,7 +60,7 @@ export default function Home() {
     setHeroIndex(0);
     advanceAfter(0);
     return () => window.clearTimeout(timer);
-  }, [content.heroImages, content.heroSlideIntervalSeconds, content.heroVideoDurationSeconds, showHeroVideo]);
+  }, [content.heroImages, content.heroSlideIntervalSeconds, content.heroVideoDurationSeconds, showHeroVideo, videoSlideIndex]);
 
   useEffect(() => {
     const phraseTimer = window.setInterval(() => setPhraseIndex((index) => (index + 1) % content.heroPhrases.length), 4000);
@@ -65,13 +70,13 @@ export default function Home() {
   useEffect(() => {
     const video = heroVideoRef.current;
     if (!video) return;
-    if (showHeroVideo && heroIndex === 4) {
+    if (showHeroVideo && heroIndex === videoSlideIndex) {
       video.currentTime = 0;
       void video.play().catch(() => setVideoAvailable(false));
     } else {
       video.pause();
     }
-  }, [heroIndex, showHeroVideo]);
+  }, [heroIndex, showHeroVideo, videoSlideIndex]);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

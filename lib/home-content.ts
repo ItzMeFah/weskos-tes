@@ -21,6 +21,30 @@ export type HomeContent = {
 export const HOME_CONTENT_KEY = "home";
 export const HOME_CONTENT_STORAGE_KEY = "weskos-demo-home";
 
+export const HERO_LANDSCAPE_IMAGES = [
+  "/images/krui-bukit-barisan.jpg",
+  "/images/pulau-pisang-coast.jpg",
+  "/images/pesisir-green-fields.webp",
+  "/images/pulau-pisang-view.jpg",
+  "/images/hero-coast-aerial-01.webp",
+  "/images/hero-coast-aerial-02.webp",
+  "/images/hero-coast-boats-01.webp",
+  "/images/hero-coast-bay-01.webp",
+  "/images/hero-coast-pier-01.webp",
+  "/images/hero-coast-boats-02.webp",
+  "/images/hero-coast-clouds-01.webp",
+  "/images/hero-coast-palms-01.webp",
+  "/images/hero-coast-village-01.webp",
+];
+
+export const HERO_SURF_IMAGES = [
+  "/images/krui-wave-rider.jpg",
+  "/images/wave-rider-wide.jpg",
+  "/images/barrel-session.jpg",
+  "/images/krui-surf-turn.jpg",
+  "/images/air-surf-session.jpg",
+];
+
 export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroTitle: "Make your next move.",
   heroPhrases: ["Start your business with clarity.", "Know the land before you sign.", "Handle permits with local guidance.", "Plan your stay in Indonesia."],
@@ -28,7 +52,7 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroVideo: "/images/krui-surf-intro.mp4",
   heroVideoDurationSeconds: 4,
   heroSlideIntervalSeconds: 10,
-  heroImages: ["/images/krui-bukit-barisan.jpg", "/images/pulau-pisang-coast.jpg", "/images/pesisir-green-fields.webp", "/images/pulau-pisang-view.jpg", "/images/krui-wave-rider.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
+  heroImages: [...HERO_LANDSCAPE_IMAGES, ...HERO_SURF_IMAGES],
   photos: {
     apparel: "/images/weskos-local-team.jpg",
     surfGoods: "/images/fishing-day.jpg",
@@ -46,6 +70,14 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     const number = Number(candidate);
     return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.round(number))) : fallback;
   };
+  const configuredHeroImages = Array.isArray(value?.heroImages)
+    ? value.heroImages.filter((photo): photo is string => typeof photo === "string" && !/instagram-krui-(surf|green)/i.test(photo))
+    : [];
+  const surfImageSet = new Set(HERO_SURF_IMAGES);
+  const configuredSurfImages = configuredHeroImages.filter((photo) => surfImageSet.has(photo));
+  const surfImages = [...configuredSurfImages, ...HERO_SURF_IMAGES.filter((photo) => !configuredSurfImages.includes(photo))];
+  const customImages = [...new Set(configuredHeroImages.filter((photo) => !HERO_LANDSCAPE_IMAGES.includes(photo) && !surfImageSet.has(photo)))];
+  const heroImages = [...HERO_LANDSCAPE_IMAGES, ...customImages, ...surfImages];
   return {
     ...DEFAULT_HOME_CONTENT,
     ...value,
@@ -61,19 +93,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
       ["Set up your company with clarity.", "Navigate property with local guidance.", "Handle permits with confidence.", "Plan your visa extension."],
       ["Set up your PT PMA with clarity.", "Make your business legal in Indonesia.", "Explore property with local guidance.", "Extend your stay with confidence."],
     ].some((legacy) => value.heroPhrases!.length === legacy.length && value.heroPhrases!.every((phrase, index) => phrase === legacy[index])) ? value.heroPhrases : DEFAULT_HOME_CONTENT.heroPhrases,
-    heroImages: Array.isArray(value?.heroImages) && value.heroImages.length && ![
-    ["/images/krui-coast-ride.jpg", "/images/wave-rider-wide.jpg", "/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
-      ["/images/krui-wave-rider.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg"],
-      ["/images/krui-wave-rider.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
-      ["/images/krui-bukit-barisan.jpg", "/images/pulau-pisang-coast.jpg", "/images/krui-wave-rider.jpg", "/images/pulau-pisang-beach.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
-      ["/images/krui-bukit-barisan.jpg", "/images/pulau-pisang-coast.jpg", "/images/pulau-pisang-beach.jpg", "/images/pulau-pisang-view.jpg", "/images/krui-wave-rider.jpg", "/images/wave-rider-wide.jpg", "/images/barrel-session.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg"],
-    ].some((legacy) => value.heroImages!.length === legacy.length && value.heroImages!.every((photo, index) => photo === legacy[index]))
-      ? DEFAULT_HOME_CONTENT.heroImages
-      : Array.isArray(value?.heroImages) && value.heroImages.length
-        ? value.heroImages.filter((photo) => typeof photo === "string" && !/instagram-krui-(surf|green)/i.test(photo)).length > 1
-          ? value.heroImages.filter((photo) => typeof photo === "string" && !/instagram-krui-(surf|green)/i.test(photo)) as string[]
-          : DEFAULT_HOME_CONTENT.heroImages
-        : DEFAULT_HOME_CONTENT.heroImages,
+    heroImages: heroImages.length > HERO_LANDSCAPE_IMAGES.length ? heroImages : DEFAULT_HOME_CONTENT.heroImages,
     heroVideoDurationSeconds: seconds(value?.heroVideoDurationSeconds, DEFAULT_HOME_CONTENT.heroVideoDurationSeconds, 0, 30),
     heroSlideIntervalSeconds: seconds(value?.heroSlideIntervalSeconds, DEFAULT_HOME_CONTENT.heroSlideIntervalSeconds, 3, 120),
     photos: {
