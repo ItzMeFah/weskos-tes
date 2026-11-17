@@ -21,10 +21,10 @@ export type HomeContent = {
 export const HOME_CONTENT_KEY = "home";
 
 export const HERO_LANDSCAPE_IMAGES = [
-  "/images/krui-bukit-barisan.jpg",
-  "/images/pulau-pisang-coast.jpg",
+  "/images/krui-bukit-barisan.webp",
+  "/images/pulau-pisang-coast.webp",
   "/images/pesisir-green-fields.webp",
-  "/images/pulau-pisang-view.jpg",
+  "/images/pulau-pisang-view.webp",
   "/images/hero-coast-aerial-01.webp",
   "/images/hero-coast-aerial-02.webp",
   "/images/hero-coast-boats-01.webp",
@@ -37,12 +37,20 @@ export const HERO_LANDSCAPE_IMAGES = [
 ];
 
 export const HERO_SURF_IMAGES = [
-  "/images/krui-wave-rider.jpg",
-  "/images/wave-rider-wide.jpg",
-  "/images/barrel-session.jpg",
-  "/images/krui-surf-turn.jpg",
-  "/images/air-surf-session.jpg",
+  "/images/krui-wave-rider.webp",
+  "/images/wave-rider-wide.webp",
+  "/images/barrel-session.webp",
+  "/images/krui-surf-turn.webp",
+  "/images/air-surf-session.webp",
 ];
+
+export const HERO_OPENING_IMAGE_COUNT = 4;
+
+function useOptimizedLocalImage(src: string): string {
+  return src.startsWith("/images/")
+    ? src.replace(/\.(?:jpe?g|png)$/i, ".webp")
+    : src;
+}
 
 export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroTitle: "Make your next move.",
@@ -53,12 +61,12 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroSlideIntervalSeconds: 10,
   heroImages: [...HERO_LANDSCAPE_IMAGES, ...HERO_SURF_IMAGES],
   photos: {
-    apparel: "/images/weskos-local-team.jpg",
-    surfGoods: "/images/fishing-day.jpg",
-    gallery: ["/images/krui-coast-ride.jpg", "/images/krui-wave-rider.jpg", "/images/wave-rider-wide.jpg", "/images/air-surf-session.jpg"],
-    boardArtwork: "/images/surfboard-stencil-trio.png",
-    manifesto: "/images/krui-surf-turn.jpg",
-    storefront: "/images/storefront.jpeg",
+    apparel: "/images/weskos-local-team.webp",
+    surfGoods: "/images/fishing-day.webp",
+    gallery: ["/images/krui-coast-ride.webp", "/images/krui-wave-rider.webp", "/images/wave-rider-wide.webp", "/images/air-surf-session.webp"],
+    boardArtwork: "/images/surfboard-stencil-trio.webp",
+    manifesto: "/images/krui-surf-turn.webp",
+    storefront: "/images/storefront.webp",
   },
   introTitle: "Local insight for your next move in Indonesia.",
   introBody: "Starting a company, sorting permits, exploring a property purchase, or extending your stay can bring a lot of questions. Weskos helps local and international clients understand the process and take the next step with confidence.",
@@ -70,7 +78,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.round(number))) : fallback;
   };
   const configuredHeroImages = Array.isArray(value?.heroImages)
-    ? value.heroImages.filter((photo): photo is string => typeof photo === "string" && !/instagram-krui-(surf|green)/i.test(photo))
+    ? value.heroImages.filter((photo): photo is string => typeof photo === "string" && !/instagram-krui-(surf|green)/i.test(photo)).map(useOptimizedLocalImage)
     : [];
   const surfImageSet = new Set(HERO_SURF_IMAGES);
   const configuredSurfImages = configuredHeroImages.filter((photo) => surfImageSet.has(photo));
@@ -98,19 +106,21 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     photos: {
       ...DEFAULT_HOME_CONTENT.photos,
       ...value?.photos,
-      apparel: ["/images/apparel-rack.jpeg", "/images/krui-coast-ride.jpg", "/images/instagram-krui-green.webp"].includes(value?.photos?.apparel ?? "") ? DEFAULT_HOME_CONTENT.photos.apparel : value?.photos?.apparel ?? DEFAULT_HOME_CONTENT.photos.apparel,
-      surfGoods: ["/images/store-products.jpeg", "/images/krui-wave-rider.jpg", "/images/instagram-krui-surf.webp"].includes(value?.photos?.surfGoods ?? "") ? DEFAULT_HOME_CONTENT.photos.surfGoods : value?.photos?.surfGoods ?? DEFAULT_HOME_CONTENT.photos.surfGoods,
-      manifesto: ["/images/store-sign.jpeg", "/images/krui-coast-ride.jpg", "/images/instagram-krui-green.webp"].includes(value?.photos?.manifesto ?? "") ? DEFAULT_HOME_CONTENT.photos.manifesto : value?.photos?.manifesto ?? DEFAULT_HOME_CONTENT.photos.manifesto,
+      apparel: ["/images/apparel-rack.webp", "/images/krui-coast-ride.webp", "/images/instagram-krui-green.webp"].includes(value?.photos?.apparel ?? "") ? DEFAULT_HOME_CONTENT.photos.apparel : useOptimizedLocalImage(value?.photos?.apparel ?? DEFAULT_HOME_CONTENT.photos.apparel),
+      surfGoods: ["/images/store-products.webp", "/images/krui-wave-rider.webp", "/images/instagram-krui-surf.webp"].includes(value?.photos?.surfGoods ?? "") ? DEFAULT_HOME_CONTENT.photos.surfGoods : useOptimizedLocalImage(value?.photos?.surfGoods ?? DEFAULT_HOME_CONTENT.photos.surfGoods),
+      manifesto: ["/images/store-sign.webp", "/images/krui-coast-ride.webp", "/images/instagram-krui-green.webp"].includes(value?.photos?.manifesto ?? "") ? DEFAULT_HOME_CONTENT.photos.manifesto : useOptimizedLocalImage(value?.photos?.manifesto ?? DEFAULT_HOME_CONTENT.photos.manifesto),
       gallery: Array.isArray(value?.photos?.gallery) && ![
-        ["/images/weskos-surf-tee.jpg", "/images/krui-coast-ride.jpg", "/images/weskos-tshirt-art.jpg", "/images/tropical-sumatera-shirt.jpg"],
-        ["/images/wave-rider-wide.jpg", "/images/krui-surf-turn.jpg", "/images/air-surf-session.jpg", "/images/barrel-session.jpg"],
+        ["/images/weskos-surf-tee.webp", "/images/krui-coast-ride.webp", "/images/weskos-tshirt-art.webp", "/images/tropical-sumatera-shirt.webp"],
+        ["/images/wave-rider-wide.webp", "/images/krui-surf-turn.webp", "/images/air-surf-session.webp", "/images/barrel-session.webp"],
       ].some((legacy) => value.photos!.gallery!.length === legacy.length && value.photos!.gallery!.every((photo, index) => photo === legacy[index]))
         ? DEFAULT_HOME_CONTENT.photos.gallery
         : Array.isArray(value?.photos?.gallery) && value.photos.gallery.length
           ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item)).length
-            ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item))
+            ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item)).map(useOptimizedLocalImage)
             : DEFAULT_HOME_CONTENT.photos.gallery
           : DEFAULT_HOME_CONTENT.photos.gallery,
+      storefront: useOptimizedLocalImage(value?.photos?.storefront ?? DEFAULT_HOME_CONTENT.photos.storefront),
+      boardArtwork: useOptimizedLocalImage(value?.photos?.boardArtwork ?? DEFAULT_HOME_CONTENT.photos.boardArtwork),
     },
   };
 }

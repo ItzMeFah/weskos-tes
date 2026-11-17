@@ -5,7 +5,7 @@ export const metadata = {
 
 const credits = [
   {
-    image: "/images/krui-bukit-barisan.jpg",
+    image: "/images/krui-bukit-barisan.webp",
     alt: "Bukit Barisan Selatan seen from Krui beach",
     title: "Bukit Barisan Selatan from Pantai Krui",
     author: "Hutanrimba366",
@@ -14,7 +14,7 @@ const credits = [
     licenseName: "CC BY-SA 4.0",
   },
   {
-    image: "/images/pulau-pisang-coast.jpg",
+    image: "/images/pulau-pisang-coast.webp",
     alt: "Beach and coastal landscape on Pulau Pisang, Lampung",
     title: "Pulau Pisang, Lampung",
     author: "Cendy00",
@@ -23,7 +23,7 @@ const credits = [
     licenseName: "CC BY 4.0",
   },
   {
-    image: "/images/pulau-pisang-beach.jpg",
+    image: "/images/pulau-pisang-beach.webp",
     alt: "Sandy shore and turquoise water at Pulau Pisang",
     title: "Tepi Pantai Pulau Pisang",
     author: "Gayamentari",
@@ -32,7 +32,7 @@ const credits = [
     licenseName: "CC0 1.0",
   },
   {
-    image: "/images/pulau-pisang-view.jpg",
+    image: "/images/pulau-pisang-view.webp",
     alt: "Coastal view of Pulau Pisang, Krui, Pesisir Barat",
     title: "View from the right side of Pulau Pisang",
     author: "Kibe00",

@@ -33,7 +33,7 @@ export default function SiteHeader() {
   }
 
   return <header className="site-header">
-    <a href="/#home" className="site-brand" aria-label="Weskos Legal Co. home"><img src="/images/weskos-logo.png" alt="Weskos"/></a>
+    <a href="/#home" className="site-brand" aria-label="Weskos Legal Co. home"><img src="/images/weskos-logo.webp" alt="Weskos"/></a>
     <nav className="main-nav" aria-label="Main navigation">
       <a className="nav-link" href="/#home">Home</a>
       <div className="nav-dropdown services-dropdown"><a className="nav-link" href="/#services" aria-haspopup="true">Services</a><div className="nav-menu" aria-label="Weskos services"><a href="/services/company-formation">Company Formation &amp; PT PMA</a><a href="/services/business-permits">Business Licensing &amp; Permits</a><a href="/services/visa-immigration">Visa &amp; Immigration</a><a href="/services/property-due-diligence">Property Due Diligence</a><a href="/services/property-acquisition">Property Acquisition</a><a href="/services/legal-consulting">Legal Consulting &amp; Disputes</a></div></div>

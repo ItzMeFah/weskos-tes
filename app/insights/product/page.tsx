@@ -1,9 +1,9 @@
 import InsightsFrame from "@/app/components/InsightsFrame";
 
 const products = [
-  { src: "/images/weskos-local-team.jpg", alt: "Weskos surf community in Krui", label: "Made around the surf community" },
-  { src: "/images/surfboard-stencil-trio.png", alt: "Three monochrome Weskos surfboard artwork designs", label: "Board art & design" },
-  { src: "/images/weskos-tshirt-art.jpg", alt: "Weskos surf apparel design", label: "Weskos apparel" },
+  { src: "/images/weskos-local-team.webp", alt: "Weskos surf community in Krui", label: "Made around the surf community" },
+  { src: "/images/surfboard-stencil-trio.webp", alt: "Three monochrome Weskos surfboard artwork designs", label: "Board art & design" },
+  { src: "/images/weskos-tshirt-art.webp", alt: "Weskos surf apparel design", label: "Weskos apparel" },
 ];
 
 export default function ProductInsights() {

@@ -1,12 +1,12 @@
 import InsightsFrame from "@/app/components/InsightsFrame";
 
 const surfPhotos = [
-  { src: "/images/krui-coast-ride.jpg", alt: "Surfer riding a wave along the Krui coast", label: "A local day in Krui" },
-  { src: "/images/krui-wave-rider.jpg", alt: "Surfer on a blue Krui wave", label: "The Indian Ocean" },
-  { src: "/images/wave-rider-wide.jpg", alt: "Wide view of a surfer riding a wave", label: "Along the Pesisir Barat coast" },
-  { src: "/images/air-surf-session.jpg", alt: "Surfer lifts off above a breaking wave", label: "Time above the water" },
-  { src: "/images/barrel-session.jpg", alt: "Surfer inside a curling barrel wave", label: "In the pocket" },
-  { src: "/images/krui-surf-turn.jpg", alt: "Surfer carving a turn on a Krui wave", label: "Find your line" },
+  { src: "/images/krui-coast-ride.webp", alt: "Surfer riding a wave along the Krui coast", label: "A local day in Krui" },
+  { src: "/images/krui-wave-rider.webp", alt: "Surfer on a blue Krui wave", label: "The Indian Ocean" },
+  { src: "/images/wave-rider-wide.webp", alt: "Wide view of a surfer riding a wave", label: "Along the Pesisir Barat coast" },
+  { src: "/images/air-surf-session.webp", alt: "Surfer lifts off above a breaking wave", label: "Time above the water" },
+  { src: "/images/barrel-session.webp", alt: "Surfer inside a curling barrel wave", label: "In the pocket" },
+  { src: "/images/krui-surf-turn.webp", alt: "Surfer carving a turn on a Krui wave", label: "Find your line" },
 ];
 
 export default function SurfInsights() {
