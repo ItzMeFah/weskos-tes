@@ -13,6 +13,7 @@ create table if not exists public.products (
 alter table public.products enable row level security;
 drop policy if exists "Published products are viewable by everyone" on public.products;
 create policy "Published products are viewable by everyone" on public.products for select using (is_published = true);
+grant select on public.products to anon, authenticated;
 
 -- Admin allowlist. Create the user under Authentication first, then insert its UUID here.
 create table if not exists public.admin_users (
@@ -23,6 +24,7 @@ alter table public.admin_users enable row level security;
 drop policy if exists "Admins can read their own allowlist entry" on public.admin_users;
 create policy "Admins can read their own allowlist entry" on public.admin_users
   for select to authenticated using (user_id = (select auth.uid()));
+grant select on public.admin_users to authenticated;
 
 -- The public homepage is readable by visitors; only allowlisted admins may write it.
 create table if not exists public.site_content (
@@ -40,6 +42,8 @@ drop policy if exists "Admins can update homepage content" on public.site_conten
 create policy "Admins can update homepage content" on public.site_content
   for update to authenticated using (exists (select 1 from public.admin_users where user_id = (select auth.uid())))
   with check (exists (select 1 from public.admin_users where user_id = (select auth.uid())));
+grant select on public.site_content to anon, authenticated;
+grant insert, update on public.site_content to authenticated;
 
 -- Uploaded media stays publicly readable; only allowlisted admins can manage it.
 drop policy if exists "Weskos media is public" on storage.objects;
@@ -57,3 +61,7 @@ create policy "Weskos admins can delete media" on storage.objects for delete to 
 
 -- After creating your first Auth user, allowlist its UUID (replace with the real ID):
 -- insert into public.admin_users (user_id) values ('00000000-0000-0000-0000-000000000000');
+-- Or allowlist by the Google account's email after it has signed in once:
+-- insert into public.admin_users (user_id)
+-- select id from auth.users where lower(email) = lower('your-google-email@example.com')
+-- on conflict (user_id) do nothing;
