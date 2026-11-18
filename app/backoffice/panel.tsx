@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase, uploadMedia } from "@/lib/supabase";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
@@ -22,6 +22,8 @@ export default function BackofficePanel() {
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function loadContent() {
     if (!supabase) { setStatus("not-configured"); return; }
@@ -49,14 +51,15 @@ export default function BackofficePanel() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  async function signIn() {
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!supabase) { setStatus("not-configured"); return; }
     setBusy(true); setMessage("");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/backoffice` } });
-      if (error) setMessage(`Google sign-in failed: ${error.message}`);
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) setMessage(`Sign-in failed: ${error.message}`);
     } catch (error) {
-      setMessage(error instanceof Error ? `Google sign-in failed: ${error.message}` : "Google sign-in failed. Check Supabase OAuth settings.");
+      setMessage(error instanceof Error ? `Sign-in failed: ${error.message}` : "Sign-in failed. Check your Supabase Auth settings.");
     } finally {
       setBusy(false);
     }
@@ -105,10 +108,14 @@ export default function BackofficePanel() {
   };
 
   if (status === "checking") return <main className="backoffice-shell"><div className="backoffice-loading">Loading Weskos backoffice…</div></main>;
-  if (status === "not-configured") return <main className="backoffice-shell"><section className="login-card"><a className="admin-brand" href="/">← Back to Weskos</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p className="eyebrow">WESKOS LEGAL CO. · PRIVATE AREA</p><h1>Backoffice setup required.</h1><p className="login-copy">The CMS is locked until Supabase is connected. Configure the Supabase project URL and anon key, enable Google OAuth, and add the production callback URL before launch.</p></section></main>;
+  if (status === "not-configured") return <main className="backoffice-shell"><section className="login-card"><a className="admin-brand" href="/">← Back to Weskos</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p className="eyebrow">WESKOS LEGAL CO. · PRIVATE AREA</p><h1>Backoffice setup required.</h1><p className="login-copy">The CMS is locked until Supabase is connected. Configure the Supabase project URL and anon key, enable email and password sign-in, then create and allowlist an admin user.</p></section></main>;
   if (status === "signed-out" || status === "not-admin") return <main className="backoffice-shell"><section className="login-card"><a className="admin-brand" href="/">← Back to Weskos</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p className="eyebrow">WESKOS LEGAL CO. · PRIVATE AREA</p><h1>Welcome back.</h1><p className="login-copy">Sign in to update the Weskos homepage and service imagery.</p>
-    <button className="admin-button" onClick={() => void signIn()} disabled={busy}>{busy ? "Connecting to Google…" : "Continue with Google"}</button>
-    {message && <p className="admin-message" role="status">{message}</p>}<p className="auth-note">Only Google accounts listed in the Weskos admin allowlist can enter the editor.</p></section></main>;
+    <form className="admin-form" onSubmit={(event) => void signIn(event)}>
+      <label>Email<input type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com"/></label>
+      <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)}/></label>
+      <button className="admin-button" type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+    </form>
+    {message && <p className="admin-message" role="status">{message}</p>}<p className="auth-note">Use the email and password for your Supabase Auth account. Only users added to the Weskos admin allowlist can enter the editor.</p></section></main>;
 
   return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav><a className="admin-nav-active" href="#home-editor">⌂ &nbsp; Homepage</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>SUPABASE ADMIN</span><button onClick={signOut}>Sign out</button></div></aside>
     <section className="admin-main"><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div><a className="admin-preview-link" href="/">Preview website <span>↗</span></a></div>

@@ -15,7 +15,7 @@ drop policy if exists "Published products are viewable by everyone" on public.pr
 create policy "Published products are viewable by everyone" on public.products for select using (is_published = true);
 grant select on public.products to anon, authenticated;
 
--- Admin allowlist. Create the user under Authentication first, then insert its UUID here.
+-- Admin allowlist. Create an email/password user under Authentication first, then insert its UUID here.
 create table if not exists public.admin_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
@@ -61,7 +61,7 @@ create policy "Weskos admins can delete media" on storage.objects for delete to 
 
 -- After creating your first Auth user, allowlist its UUID (replace with the real ID):
 -- insert into public.admin_users (user_id) values ('00000000-0000-0000-0000-000000000000');
--- Or allowlist by the Google account's email after it has signed in once:
+-- Or allowlist by the Auth user's email:
 -- insert into public.admin_users (user_id)
--- select id from auth.users where lower(email) = lower('your-google-email@example.com')
+-- select id from auth.users where lower(email) = lower('admin@example.com')
 -- on conflict (user_id) do nothing;

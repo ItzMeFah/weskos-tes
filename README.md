@@ -28,14 +28,14 @@ Buka http://localhost:3000.
 1. Buat project Supabase.
 2. Salin `.env.example` sebagai `.env.local` dan isi URL serta anon key dari Project Settings → API.
 3. Jalankan `supabase/setup.sql` melalui SQL Editor.
-4. Aktifkan Google di Supabase Authentication → Sign In / Providers, lalu masukkan OAuth Client ID dan Secret dari Google Cloud. Authorized redirect URI di Google adalah `https://<project-ref>.supabase.co/auth/v1/callback`.
-5. Di Supabase Authentication → URL Configuration, tambahkan URL lokal dan URL produksi dengan path `/backoffice` sebagai Redirect URLs yang diizinkan.
-6. Masuk ke `/backoffice` dengan Google. Tambahkan UUID akun Google yang diizinkan ke `public.admin_users` melalui SQL Editor; hanya UUID yang ada di tabel tersebut yang bisa membuka editor.
+4. Di Supabase Authentication → Sign In / Providers, aktifkan Email provider dan pastikan password sign-in diizinkan.
+5. Buat admin melalui Authentication → Users → Add user, memakai email dan password yang akan dipakai untuk masuk. Tambahkan UUID user itu ke `public.admin_users` melalui SQL Editor; hanya UUID yang ada di tabel tersebut yang bisa membuka editor. Contoh query berdasarkan email ada di komentar `supabase/setup.sql`.
+6. Masuk ke `/backoffice` menggunakan email dan password akun tersebut.
 7. Klik **Save homepage** untuk menyimpan ke Supabase. Gunakan input upload untuk mengirim foto atau MP4 (maks. 10 MB) ke Storage.
 
 Service role key jangan dimasukkan ke variabel `NEXT_PUBLIC_*` atau kode browser. RLS admin allowlist melindungi CMS homepage dan Storage; katalog produk saat ini baru disiapkan untuk pembacaan produk yang dipublikasikan.
 
-Backoffice hanya mendukung Google OAuth melalui Supabase Auth. Tidak ada mode demo, penyimpanan konten lokal, atau login password. Jika konfigurasi Supabase belum tersedia, editor akan tetap terkunci.
+Backoffice memakai email dan password melalui Supabase Auth. Pembuatan akun dikelola dari Supabase Dashboard; tidak ada pendaftaran publik, mode demo, atau penyimpanan konten lokal. Jika konfigurasi Supabase belum tersedia, editor akan tetap terkunci.
 
 ## Persiapan integrasi Google AI Studio
 
