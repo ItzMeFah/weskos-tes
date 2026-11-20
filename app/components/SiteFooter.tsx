@@ -1,8 +1,8 @@
-import type { HomeContent } from "@/lib/home-content";
+import { DEFAULT_HOME_CONTENT, type HomeContent } from "@/lib/home-content";
 
 const directions = "https://maps.app.goo.gl/4bhoLfCscugu52SW7?g_st=ipc";
 
-export default function SiteFooter({ contact, services }: Pick<HomeContent, "contact" | "services">) {
+export default function SiteFooter({ contact = DEFAULT_HOME_CONTENT.contact, services = DEFAULT_HOME_CONTENT.services }: Partial<Pick<HomeContent, "contact" | "services">> = {}) {
   const phone = contact.phone.replace(/\D/g, "");
   const instagram = `https://instagram.com/${contact.instagram.replace(/^@/, "")}`;
   const whatsapp = `https://wa.me/${phone}`;
