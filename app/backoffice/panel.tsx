@@ -5,8 +5,29 @@ import { supabase, uploadMedia } from "@/lib/supabase";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 type AdminStatus = "checking" | "not-configured" | "signed-out" | "admin" | "not-admin";
-type EditorTab = "hero" | "photos" | "story" | "services" | "contact";
-type PhotoArea = "hero" | "gallery" | "apparel" | "surfGoods" | "manifesto" | "storefront" | "boardArtwork";
+type EditorTab = "hero" | "photos" | "copy" | "story" | "services" | "contact" | "account";
+type CopyTextKey = Exclude<keyof HomeContent["copy"], "manifestoStamp">;
+type PhotoArea = "hero" | "gallery" | "coastAndLocation" | "apparel" | "surfGoods" | "manifesto" | "storefront" | "boardArtwork";
+const LOCAL_PREVIEW_KEY = "weskos-local-preview-content";
+
+async function localImageUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1800 / bitmap.width, 1800 / bitmap.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not prepare this photo for the local preview.");
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Could not prepare this photo for the local preview.")), "image/webp", 0.78));
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read this photo."));
+    reader.readAsDataURL(blob);
+  });
+}
 
 function PhotoRow({ src, label, index, count, busy, onUrl, onMove, onRemove, onFile, allowRemove = true }: {
   src: string; label: string; index: number; count: number; busy: boolean;
@@ -25,10 +46,13 @@ export default function BackofficePanel() {
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [activeTab, setActiveTab] = useState<EditorTab>("hero");
+  const [localPreview, setLocalPreview] = useState(false);
   const previewFrame = useRef<HTMLIFrameElement>(null);
 
   async function loadContent() {
@@ -50,6 +74,21 @@ export default function BackofficePanel() {
   }
 
   useEffect(() => {
+    const requestedLocalPreview = process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).has("local-preview");
+    if (requestedLocalPreview) {
+      setLocalPreview(true);
+      try {
+        const stored = window.localStorage.getItem(LOCAL_PREVIEW_KEY);
+        const normalized = normalizeHomeContent(stored ? JSON.parse(stored) : DEFAULT_HOME_CONTENT);
+        setContent(normalized);
+        setSavedSnapshot(JSON.stringify(normalized));
+      } catch {
+        setContent(DEFAULT_HOME_CONTENT);
+        setSavedSnapshot(JSON.stringify(DEFAULT_HOME_CONTENT));
+      }
+      setStatus("admin");
+      return;
+    }
     if (!supabase) { setStatus("not-configured"); return; }
     void supabase.auth.getSession().then(({ data, error }) => {
       if (error) { setMessage("Could not connect to Supabase Auth. Check the project URL and anon key."); setStatus("signed-out"); return; }
@@ -79,8 +118,52 @@ export default function BackofficePanel() {
     setSavedSnapshot(JSON.stringify(DEFAULT_HOME_CONTENT));
   }
 
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (localPreview || !supabase) {
+      setMessage("Sign in to Supabase to change the admin password.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setMessage("Use at least 8 characters for the new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage("The new passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setMessage(`Could not change password: ${error.message}`);
+        return;
+      }
+      setNewPassword("");
+      setConfirmPassword("");
+      setMessage("Password changed. Use the new password next time you sign in.");
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not change password: ${error.message}` : "Could not change the password. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveContent() {
     setBusy(true); setMessage("");
+    if (localPreview) {
+      try {
+        const snapshot = JSON.stringify(content);
+        window.localStorage.setItem(LOCAL_PREVIEW_KEY, snapshot);
+        setSavedSnapshot(snapshot);
+        setMessage("Saved in this browser only. Supabase was not changed.");
+      } catch {
+        setMessage("Could not save this local preview in browser storage.");
+      }
+      setBusy(false);
+      return;
+    }
     if (status === "admin" && supabase) {
       const snapshot = JSON.stringify(content);
       const { error } = await supabase.from("site_content").upsert({ id: HOME_CONTENT_KEY, content, updated_at: new Date().toISOString() });
@@ -95,12 +178,19 @@ export default function BackofficePanel() {
     setBusy(true); setMessage("");
     try {
       let photoUrl: string;
-      if (status !== "admin") throw new Error("Sign in with an approved Weskos admin account to upload media.");
-      photoUrl = await uploadMedia(file, "home");
+      if (localPreview) photoUrl = await localImageUrl(file);
+      else {
+        if (status !== "admin") throw new Error("Sign in with an approved Weskos admin account to upload media.");
+        photoUrl = await uploadMedia(file, "home");
+      }
       if (area === "hero") update("heroImages", index === undefined ? [...content.heroImages, photoUrl] : content.heroImages.map((photo, i) => i === index ? photoUrl : photo));
       else if (area === "gallery") updatePhoto("gallery", index === undefined ? [...content.photos.gallery, photoUrl] : content.photos.gallery.map((photo, i) => i === index ? photoUrl : photo));
+      else if (area === "coastAndLocation") {
+        const photos = content.photos.coastAndLocation ?? [];
+        updatePhoto("coastAndLocation", index === undefined ? [...photos, photoUrl] : photos.map((photo, i) => i === index ? photoUrl : photo));
+      }
       else updatePhoto(area, photoUrl);
-      setMessage("Photo updated. Save homepage to publish your changes.");
+      setMessage(localPreview ? "Photo added to local preview. Save homepage to keep it in this browser." : "Photo updated. Save homepage to publish your changes.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload failed. Check your storage settings.");
     }
@@ -109,18 +199,30 @@ export default function BackofficePanel() {
 
   const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
   const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
-  const updateService = (index: number, field: "title" | "description", value: string) => { setMessage(""); setContent((current) => ({ ...current, services: current.services.map((service, i) => i === index ? { ...service, [field]: value } : service) })); };
+  const updateService = (index: number, field: "category" | "title" | "description", value: string) => { setMessage(""); setContent((current) => ({ ...current, services: current.services.map((service, i) => i === index ? { ...service, [field]: value } : service) })); };
+  const updateCopy = <K extends CopyTextKey>(field: K, value: HomeContent["copy"][K]) => { setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, [field]: value } })); };
+  const updateManifestoStamp = (index: number, value: string) => { setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, manifestoStamp: current.copy.manifestoStamp.map((line, i) => i === index ? value : line) } })); };
   const updateManifesto = <K extends keyof HomeContent["manifesto"]>(field: K, value: HomeContent["manifesto"][K]) => { setMessage(""); setContent((current) => ({ ...current, manifesto: { ...current.manifesto, [field]: value } })); };
   const updateContact = <K extends keyof HomeContent["contact"]>(field: K, value: HomeContent["contact"][K]) => { setMessage(""); setContent((current) => ({ ...current, contact: { ...current.contact, [field]: value } })); };
-  const movePhoto = (area: "hero" | "gallery", index: number, direction: -1 | 1) => {
-    const field = area === "hero" ? "heroImages" : "gallery";
-    const photos = [...(area === "hero" ? content.heroImages : content.photos.gallery)];
+  const movePhoto = (area: "hero" | "gallery" | "coastAndLocation", index: number, direction: -1 | 1) => {
+    const photos = [...(area === "hero" ? content.heroImages : (content.photos[area] ?? []))];
     const target = index + direction;
     if (target < 0 || target >= photos.length) return;
     [photos[index], photos[target]] = [photos[target], photos[index]];
-    if (area === "hero") update("heroImages", photos); else updatePhoto("gallery", photos);
+    if (area === "hero") update("heroImages", photos); else updatePhoto(area, photos);
   };
 
+  const copyFieldGroups: { title: string; fields: [CopyTextKey, string][] }[] = [
+    { title: "Navigation & header", fields: [["navHome", "Home link"], ["navServices", "Services link"], ["navAbout", "About link"], ["navInsights", "Insights link"], ["navContact", "Contact link"], ["navProduct", "Product link"], ["navSurf", "Surf link"], ["navWhatsappLabel", "WhatsApp icon label"], ["navInstagramLabel", "Instagram icon label"], ["navEmailLabel", "Email icon label"], ["homeAriaLabel", "Logo accessibility label"], ["navAriaLabel", "Navigation accessibility label"], ["servicesMenuAriaLabel", "Services menu accessibility label"], ["insightsMenuAriaLabel", "Insights menu accessibility label"], ["headerActionsAriaLabel", "Header actions accessibility label"]] },
+    { title: "Hero button & location", fields: [["heroCta", "Hero button text"], ["heroLocation", "Hero location text"]] },
+    { title: "Introduction", fields: [["introEyebrow", "Section label"], ["introTagLine1", "Image tag line 1"], ["introTagLine2", "Image tag line 2"], ["introLinkText", "Introduction link text"]] },
+    { title: "Services section", fields: [["servicesEyebrow", "Section label"], ["servicesHeadingLine1", "Heading line 1"], ["servicesHeadingLine2", "Heading line 2"], ["servicesLead", "Section description"], ["serviceLinkText", "Service card link text"]] },
+    { title: "Photo story", fields: [["photoStoryEyebrow", "Section label"], ["photoStoryTitleStart", "Heading first part"], ["photoStoryTitleEm", "Heading emphasized part"], ["photoStoryCaption", "Photo caption"], ["photoStoryAltPrefix", "Image description prefix"]] },
+    { title: "Feature image & map", fields: [["manifestoImageAlt", "Feature image description"], ["manifestoImageCaption", "Feature image caption"], ["mapAriaLabel", "Map link accessibility label"], ["mapPhotoAlt", "Location photo description"], ["mapEyebrow", "Map label"], ["mapTitle", "Map link text"]] },
+    { title: "Contact labels", fields: [["contactWhatsappLabel", "WhatsApp label"], ["contactEmailLabel", "Email label"], ["contactInstagramLabel", "Instagram label"]] },
+    { title: "Footer", fields: [["footerBrandText", "Brand description"], ["footerVisitLabel", "Visit link text"], ["footerServicesHeading", "Services column title"], ["footerExploreHeading", "Explore column title"], ["footerAboutLabel", "About link"], ["footerSurfLabel", "Surf link"], ["footerProductsLabel", "Products link"], ["footerPhotoCreditsLabel", "Photo credits link"], ["footerLegalHeading", "Legal column title"], ["footerTermsLabel", "Terms link"], ["footerPrivacyLabel", "Privacy link"], ["footerCookiesLabel", "Cookies link"], ["footerContactHeading", "Contact column title"], ["footerDirectionsLabel", "Directions link"], ["footerInstagramLabel", "Instagram link"], ["footerCopyrightName", "Copyright name"], ["footerLocation", "Footer location"], ["footerAdminLabel", "Admin link"]] },
+  ];
+  const multilineCopyFields = new Set<CopyTextKey>(["servicesLead", "footerBrandText"]);
   const isDirty = JSON.stringify(content) !== savedSnapshot;
   const sendPreviewDraft = () => previewFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content }, window.location.origin);
 
@@ -138,9 +240,10 @@ export default function BackofficePanel() {
     </form>
     {message && <p className="admin-message" role="status">{message}</p>}</section></main>;
 
-  return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav><a className="admin-nav-active" href="#home-editor">⌂ &nbsp; Homepage</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>SUPABASE ADMIN</span><button onClick={signOut}>Sign out</button></div></aside>
+  return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav><a className="admin-nav-active" href="#home-editor">⌂ &nbsp; Homepage</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>{localPreview ? "LOCAL PREVIEW" : "SUPABASE ADMIN"}</span>{localPreview ? <a href="/">Exit</a> : <button onClick={signOut}>Sign out</button>}</div></aside>
     <section className="admin-main"><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div><button className="admin-preview-link" type="button" onClick={() => setPreviewOpen(true)}>Preview website <span>↗</span></button></div>
-    <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>
+    {localPreview && <p className="local-preview-note">Local preview: edits are saved only in this browser. Supabase and live website are untouched.</p>}
+    <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["copy", "All text"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"], ["account", "Account"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>
     <div className="admin-tab-content" id="editor-panel" role="tabpanel" aria-labelledby={`editor-tab-${activeTab}`}>
     {activeTab === "hero" && <div className="admin-editor" id="home-editor"><div className="editor-title"><span>01</span><div><h2>Hero section</h2><p>Set the opening clip duration and how often the hero photos change.</p></div></div>
       <label>Hero title<input value={content.heroTitle} onChange={(event) => update("heroTitle", event.target.value)}/></label>
@@ -148,25 +251,31 @@ export default function BackofficePanel() {
       <label>Supporting text<textarea rows={3} value={content.heroLead} onChange={(event) => update("heroLead", event.target.value)}/></label>
       <div className="media-settings"><label>Opening video duration <small>Seconds before the photo rotation starts</small><span className="number-field"><input type="number" min={0} max={30} value={content.heroVideoDurationSeconds} onChange={(event) => update("heroVideoDurationSeconds", Number(event.target.value))}/><b>sec</b></span></label><label>Hero photo interval <small>Time each photo stays on screen</small><span className="number-field"><input type="number" min={3} max={120} value={content.heroSlideIntervalSeconds} onChange={(event) => update("heroSlideIntervalSeconds", Number(event.target.value))}/><b>sec</b></span></label></div>
       <label>Opening video URL<input value={content.heroVideo} onChange={(event) => update("heroVideo", event.target.value)} placeholder="/images/krui-surf-intro.mp4"/><small>Use a local path or a public Supabase Storage URL. Leave blank to skip the opening video.</small></label>
-      {status === "admin" && <label>Replace opening video<input type="file" accept="video/mp4" disabled={busy} onChange={(event) => { void (async () => { const file = event.target.files?.[0]; if (!file) return; setBusy(true); try { const url = await uploadMedia(file, "home"); update("heroVideo", url); setMessage("Opening video uploaded. Save homepage to publish it."); } catch (error) { setMessage(error instanceof Error ? error.message : "Video upload failed."); } finally { setBusy(false); } })(); event.currentTarget.value = ""; }}/></label>}
+      {status === "admin" && !localPreview && <label>Replace opening video<input type="file" accept="video/mp4" disabled={busy} onChange={(event) => { void (async () => { const file = event.target.files?.[0]; if (!file) return; setBusy(true); try { const url = await uploadMedia(file, "home"); update("heroVideo", url); setMessage("Opening video uploaded. Save homepage to publish it."); } catch (error) { setMessage(error instanceof Error ? error.message : "Video upload failed."); } finally { setBusy(false); } })(); event.currentTarget.value = ""; }}/></label>}
       <div className="media-manager"><div className="media-manager-heading"><div><b>Hero photos</b><small>Krui landscapes play first, then the surf video and surf photos. The first photo is the video poster.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "hero"); event.currentTarget.value = ""; }}/></label></div>
         <div className="media-list">{content.heroImages.map((src, index) => <PhotoRow key={`hero-${index}`} src={src} label="Hero" index={index} count={content.heroImages.length} busy={busy} onUrl={(value) => update("heroImages", content.heroImages.map((photo, i) => i === index ? value : photo))} onMove={(direction) => movePhoto("hero", index, direction)} onRemove={() => update("heroImages", content.heroImages.filter((_, i) => i !== index))} onFile={(file) => void uploadPhoto(file, "hero", index)} allowRemove={content.heroImages.length > 1}/>)}</div>
       </div>
     </div>}
     {activeTab === "photos" && <div className="admin-editor"><div className="editor-title"><span>02</span><div><h2>Website photos</h2><p>Replace, remove, and arrange every other homepage photo.</p></div></div>
-      <div className="media-manager"><div className="media-manager-heading"><div><b>Coast, property & location photos</b><small>These images appear in the landscape collage, feature section, or contact section.</small></div></div><div className="media-list">{([["apparel", "Krui landscape · 01", content.photos.apparel], ["surfGoods", "Krui landscape · 02", content.photos.surfGoods], ["manifesto", "Coastal feature", content.photos.manifesto], ["storefront", "Weskos location", content.photos.storefront]] as const).map(([area, label, src]) => <PhotoRow key={area} src={src} label={label} index={0} count={1} busy={busy} onUrl={(value) => updatePhoto(area, value)} onMove={() => undefined} onRemove={() => updatePhoto(area, "")} onFile={(file) => void uploadPhoto(file, area)}/>)}</div></div>
+      <div className="media-manager"><div className="media-manager-heading"><div><b>Coast, property & location photos</b><small>New photos are added to the homepage photo story.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "coastAndLocation"); event.currentTarget.value = ""; }}/></label></div><div className="media-list">{([["apparel", "Krui landscape · 01", content.photos.apparel], ["surfGoods", "Krui landscape · 02", content.photos.surfGoods], ["manifesto", "Coastal feature", content.photos.manifesto], ["storefront", "Weskos location", content.photos.storefront]] as const).map(([area, label, src]) => <PhotoRow key={area} src={src} label={label} index={0} count={1} busy={busy} onUrl={(value) => updatePhoto(area, value)} onMove={() => undefined} onRemove={() => updatePhoto(area, "")} onFile={(file) => void uploadPhoto(file, area)}/>)}</div><div className="media-list">{(content.photos.coastAndLocation ?? []).map((src, index, coastPhotos) => <PhotoRow key={index} src={src} label="Coast & location" index={index} count={coastPhotos.length} busy={busy} onUrl={(value) => updatePhoto("coastAndLocation", coastPhotos.map((photo, i) => i === index ? value : photo))} onMove={(direction) => movePhoto("coastAndLocation", index, direction)} onRemove={() => updatePhoto("coastAndLocation", coastPhotos.filter((_, i) => i !== index))} onFile={(file) => void uploadPhoto(file, "coastAndLocation", index)}/>)}</div><div className="media-add-row"><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "coastAndLocation"); event.currentTarget.value = ""; }}/></label></div></div>
       <div className="media-manager"><div className="media-manager-heading"><div><b>Photo story gallery</b><small>Displayed in order on the homepage.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "gallery"); event.currentTarget.value = ""; }}/></label></div>
         <div className="media-list">{content.photos.gallery.map((src, index) => <PhotoRow key={`gallery-${index}`} src={src} label="Gallery" index={index} count={content.photos.gallery.length} busy={busy} onUrl={(value) => updatePhoto("gallery", content.photos.gallery.map((photo, i) => i === index ? value : photo))} onMove={(direction) => movePhoto("gallery", index, direction)} onRemove={() => updatePhoto("gallery", content.photos.gallery.filter((_, i) => i !== index))} onFile={(file) => void uploadPhoto(file, "gallery", index)}/>)}</div>
       </div>
     </div>}
-    {activeTab === "story" && <div className="admin-editor"><div className="editor-title"><span>03</span><div><h2>Our story</h2><p>Keep the introduction short and personal.</p></div></div><label>Section headline<input value={content.introTitle} onChange={(event) => update("introTitle", event.target.value)}/></label><label>Section description<textarea rows={4} value={content.introBody} onChange={(event) => update("introBody", event.target.value)}/></label></div>}
-    {activeTab === "services" && <div className="admin-editor"><div className="editor-title"><span>04</span><div><h2>Services</h2><p>Change the six service card titles and descriptions.</p></div></div>
-      {content.services.map((service, index) => <div className="admin-service-fields" key={`service-${index}`}><b>{String(index + 1).padStart(2, "0")} · Service</b><label>Title<input value={service.title} onChange={(event) => updateService(index, "title", event.target.value)}/></label><label>Description<textarea rows={3} value={service.description} onChange={(event) => updateService(index, "description", event.target.value)}/></label></div>)}
+    {activeTab === "copy" && <div className="admin-editor admin-copy-editor"><div className="editor-title"><span>03</span><div><h2>All landing page text</h2><p>These fields are saved in Supabase and shown on the live homepage after saving.</p></div></div>
+      {copyFieldGroups.map((group) => <details className="admin-copy-group" key={group.title} open={group.title === "Navigation & header"}><summary>{group.title}</summary><div className="admin-copy-grid">{group.fields.map(([field, label]) => <label key={field}>{label}{multilineCopyFields.has(field) ? <textarea rows={3} value={content.copy[field]} onChange={(event) => updateCopy(field, event.target.value)}/> : <input value={content.copy[field]} onChange={(event) => updateCopy(field, event.target.value)}/>}</label>)}</div>{group.title === "Feature image & map" && <div className="admin-copy-grid admin-copy-stamp">{content.copy.manifestoStamp.map((line, index) => <label key={index}>Feature stamp line {index + 1}<input value={line} onChange={(event) => updateManifestoStamp(index, event.target.value)}/></label>)}</div>}</details>)}
     </div>}
-    {activeTab === "contact" && <div className="admin-editor"><div className="editor-title"><span>05</span><div><h2>Contact & calls to action</h2><p>Update contact details and the closing messages on the homepage.</p></div></div>
+    {activeTab === "story" && <div className="admin-editor"><div className="editor-title"><span>04</span><div><h2>Our story</h2><p>Keep the introduction short and personal.</p></div></div><label>Section headline<input value={content.introTitle} onChange={(event) => update("introTitle", event.target.value)}/></label><label>Section description<textarea rows={4} value={content.introBody} onChange={(event) => update("introBody", event.target.value)}/></label></div>}
+    {activeTab === "services" && <div className="admin-editor"><div className="editor-title"><span>05</span><div><h2>Services</h2><p>Change the category, title, and description shown on the homepage.</p></div></div>
+      {content.services.map((service, index) => <div className="admin-service-fields" key={`service-${index}`}><b>{String(index + 1).padStart(2, "0")} · Service</b><label>Category<input value={service.category} onChange={(event) => updateService(index, "category", event.target.value)}/></label><label>Title<input value={service.title} onChange={(event) => updateService(index, "title", event.target.value)}/></label><label>Description<textarea rows={3} value={service.description} onChange={(event) => updateService(index, "description", event.target.value)}/></label></div>)}
+    </div>}
+    {activeTab === "contact" && <div className="admin-editor"><div className="editor-title"><span>06</span><div><h2>Contact & calls to action</h2><p>Update contact details and the closing messages on the homepage.</p></div></div>
       <div className="admin-contact-grid"><label>WhatsApp number<input value={content.contact.phone} onChange={(event) => updateContact("phone", event.target.value)}/></label><label>Contact email<input type="email" value={content.contact.email} onChange={(event) => updateContact("email", event.target.value)}/></label><label>Instagram username<input value={content.contact.instagram} onChange={(event) => updateContact("instagram", event.target.value)}/></label><label>Address<input value={content.contact.address} onChange={(event) => updateContact("address", event.target.value)}/></label></div>
       <div className="admin-subsection"><h3>Feature banner</h3><label>Eyebrow<input value={content.manifesto.eyebrow} onChange={(event) => updateManifesto("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.manifesto.title} onChange={(event) => updateManifesto("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.manifesto.body} onChange={(event) => updateManifesto("body", event.target.value)}/></label><label>Button text<input value={content.manifesto.buttonText} onChange={(event) => updateManifesto("buttonText", event.target.value)}/></label></div>
       <div className="admin-subsection"><h3>Contact section</h3><label>Eyebrow<input value={content.contact.eyebrow} onChange={(event) => updateContact("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.contact.title} onChange={(event) => updateContact("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.contact.body} onChange={(event) => updateContact("body", event.target.value)}/></label><label>Button text<input value={content.contact.buttonText} onChange={(event) => updateContact("buttonText", event.target.value)}/></label></div>
+    </div>}
+    {activeTab === "account" && <div className="admin-editor"><div className="editor-title"><span>07</span><div><h2>Account password</h2><p>Change the password you use to sign in to this Weskos admin account.</p></div></div>
+      {localPreview ? <p className="admin-account-note">Password changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-password-form" onSubmit={(event) => void changePassword(event)}><label>New password<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)}/></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)}/></label><button className="admin-button" type="submit" disabled={busy}>{busy ? "Changing password…" : "Change password"}</button></form>}
     </div>}
     </div>
     <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>

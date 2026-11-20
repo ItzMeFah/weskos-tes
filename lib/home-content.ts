@@ -10,13 +10,14 @@ export type HomeContent = {
     apparel: string;
     surfGoods: string;
     gallery: string[];
+    coastAndLocation: string[];
     boardArtwork: string;
     manifesto: string;
     storefront: string;
   };
   introTitle: string;
   introBody: string;
-  services: { title: string; description: string }[];
+  services: { category: string; title: string; description: string }[];
   manifesto: { eyebrow: string; title: string; body: string; buttonText: string };
   contact: {
     phone: string;
@@ -27,6 +28,23 @@ export type HomeContent = {
     title: string;
     body: string;
     buttonText: string;
+  };
+  copy: {
+    navHome: string; navServices: string; navAbout: string; navInsights: string; navContact: string;
+    navProduct: string; navSurf: string; navWhatsappLabel: string; navInstagramLabel: string; navEmailLabel: string;
+    homeAriaLabel: string; navAriaLabel: string; servicesMenuAriaLabel: string; insightsMenuAriaLabel: string; headerActionsAriaLabel: string;
+    heroCta: string; heroLocation: string;
+    introEyebrow: string; introTagLine1: string; introTagLine2: string; introLinkText: string;
+    servicesEyebrow: string; servicesHeadingLine1: string; servicesHeadingLine2: string; servicesLead: string; serviceLinkText: string;
+    photoStoryEyebrow: string; photoStoryTitleStart: string; photoStoryTitleEm: string; photoStoryCaption: string; photoStoryAltPrefix: string;
+    manifestoImageAlt: string; manifestoImageCaption: string; manifestoStamp: string[];
+    mapAriaLabel: string; mapPhotoAlt: string; mapEyebrow: string; mapTitle: string;
+    contactWhatsappLabel: string; contactEmailLabel: string; contactInstagramLabel: string;
+    footerBrandText: string; footerVisitLabel: string; footerServicesHeading: string; footerExploreHeading: string;
+    footerAboutLabel: string; footerSurfLabel: string; footerProductsLabel: string; footerPhotoCreditsLabel: string;
+    footerLegalHeading: string; footerTermsLabel: string; footerPrivacyLabel: string; footerCookiesLabel: string;
+    footerContactHeading: string; footerDirectionsLabel: string; footerInstagramLabel: string;
+    footerCopyrightName: string; footerLocation: string; footerAdminLabel: string;
   };
 };
 
@@ -76,6 +94,7 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
     apparel: "/images/weskos-local-team.webp",
     surfGoods: "/images/fishing-day.webp",
     gallery: ["/images/krui-coast-ride.webp", "/images/krui-wave-rider.webp", "/images/wave-rider-wide.webp", "/images/air-surf-session.webp"],
+    coastAndLocation: [],
     boardArtwork: "/images/surfboard-stencil-trio.webp",
     manifesto: "/images/krui-surf-turn.webp",
     storefront: "/images/storefront.webp",
@@ -83,12 +102,12 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   introTitle: "Local insight for your next move in Indonesia.",
   introBody: "Starting a company, sorting permits, exploring a property purchase, or extending your stay can bring a lot of questions. Weskos helps local and international clients understand the process and take the next step with confidence.",
   services: [
-    { title: "Company formation & PT PMA", description: "Set up a local company or establish a PT PMA for foreign investment, with guidance through the required steps." },
-    { title: "Business permits", description: "Help navigating business licenses, registrations, and ongoing legal administration in Indonesia." },
-    { title: "Visa extensions", description: "Assistance for foreign nationals who need help understanding or extending their Indonesian visa or stay permit." },
-    { title: "Property due diligence", description: "Review documents and key considerations before purchasing property, with guidance for local and foreign clients." },
-    { title: "Property acquisition", description: "Local support as you explore a property purchase and work through the applicable legal process." },
-    { title: "Legal solutions & disputes", description: "Get help understanding business or property matters and the possible next steps for your situation." },
+    { category: "BUSINESS SETUP", title: "Company formation & PT PMA", description: "Set up a local company or establish a PT PMA for foreign investment, with guidance through the required steps." },
+    { category: "LICENSING", title: "Business permits", description: "Help navigating business licenses, registrations, and ongoing legal administration in Indonesia." },
+    { category: "IMMIGRATION · WNA", title: "Visa extensions", description: "Assistance for foreign nationals who need help understanding or extending their Indonesian visa or stay permit." },
+    { category: "PROPERTY", title: "Property due diligence", description: "Review documents and key considerations before purchasing property, with guidance for local and foreign clients." },
+    { category: "PROPERTY", title: "Property acquisition", description: "Local support as you explore a property purchase and work through the applicable legal process." },
+    { category: "LEGAL SUPPORT", title: "Legal solutions & disputes", description: "Get help understanding business or property matters and the possible next steps for your situation." },
   ],
   manifesto: {
     eyebrow: "LOCAL KNOWLEDGE, PERSONAL GUIDANCE",
@@ -105,6 +124,23 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
     title: "Let's talk about\nyour plans in Krui.",
     body: "Share what you are working toward. We can help you understand the next step.",
     buttonText: "Message Weskos",
+  },
+  copy: {
+    navHome: "Home", navServices: "Services", navAbout: "About", navInsights: "Insights", navContact: "Contact",
+    navProduct: "Product", navSurf: "Surf", navWhatsappLabel: "WhatsApp", navInstagramLabel: "Instagram", navEmailLabel: "Email",
+    homeAriaLabel: "Weskos Legal Co. home", navAriaLabel: "Main navigation", servicesMenuAriaLabel: "Weskos services", insightsMenuAriaLabel: "Insights pages", headerActionsAriaLabel: "Contact and appearance",
+    heroCta: "See how we can help", heroLocation: "KRUI, PESISIR BARAT · INDONESIA",
+    introEyebrow: "WESKOS LEGAL CO.", introTagLine1: "BUSINESS · VISA", introTagLine2: "PERMITS · PROPERTY", introLinkText: "Get to know Weskos",
+    servicesEyebrow: "FOR LOCAL & INTERNATIONAL CLIENTS", servicesHeadingLine1: "Clear guidance.", servicesHeadingLine2: "A confident next step.", servicesLead: "From setting up a company to navigating property matters and permits, get practical support from a team that knows the area.", serviceLinkText: "Explore this service",
+    photoStoryEyebrow: "LIFE ON THE COAST", photoStoryTitleStart: "Our", photoStoryTitleEm: "photo story", photoStoryCaption: "KRUI · PESISIR BARAT", photoStoryAltPrefix: "Weskos and Krui photo story",
+    manifestoImageAlt: "Krui coastline", manifestoImageCaption: "PESISIR BARAT · SOUTH SUMATRA", manifestoStamp: ["WESKOS", "KRUI", "INDONESIA"],
+    mapAriaLabel: "Open Weskos location in Google Maps", mapPhotoAlt: "Weskos location in Pesisir Barat", mapEyebrow: "GOOGLE MAPS · KRUI", mapTitle: "Find Weskos in Pesisir Barat",
+    contactWhatsappLabel: "WhatsApp", contactEmailLabel: "Email", contactInstagramLabel: "Instagram",
+    footerBrandText: "Local business, property, and immigration guidance rooted in Krui.", footerVisitLabel: "Visit us in Pesisir Barat", footerServicesHeading: "Services", footerExploreHeading: "Explore",
+    footerAboutLabel: "About Weskos", footerSurfLabel: "Surf Journal", footerProductsLabel: "Products", footerPhotoCreditsLabel: "Photo Credits",
+    footerLegalHeading: "Legal", footerTermsLabel: "Terms of Service", footerPrivacyLabel: "Privacy Policy", footerCookiesLabel: "Cookie Policy",
+    footerContactHeading: "Get in touch", footerDirectionsLabel: "Get directions", footerInstagramLabel: "Instagram",
+    footerCopyrightName: "Weskos Legal Co.", footerLocation: "KRUI · PESISIR BARAT · INDONESIA", footerAdminLabel: "ADMIN",
   },
 };
 
@@ -155,6 +191,9 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
             ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item)).map(useOptimizedLocalImage)
             : DEFAULT_HOME_CONTENT.photos.gallery
           : DEFAULT_HOME_CONTENT.photos.gallery,
+      coastAndLocation: Array.isArray(value?.photos?.coastAndLocation)
+        ? value.photos.coastAndLocation.filter((item): item is string => typeof item === "string")
+        : DEFAULT_HOME_CONTENT.photos.coastAndLocation,
       storefront: useOptimizedLocalImage(value?.photos?.storefront ?? DEFAULT_HOME_CONTENT.photos.storefront),
       boardArtwork: useOptimizedLocalImage(value?.photos?.boardArtwork ?? DEFAULT_HOME_CONTENT.photos.boardArtwork),
     },
@@ -164,6 +203,13 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     })),
     manifesto: { ...DEFAULT_HOME_CONTENT.manifesto, ...value?.manifesto },
     contact: { ...DEFAULT_HOME_CONTENT.contact, ...value?.contact },
+    copy: {
+      ...DEFAULT_HOME_CONTENT.copy,
+      ...value?.copy,
+      manifestoStamp: Array.isArray(value?.copy?.manifestoStamp) && value.copy.manifestoStamp.length === 3
+        ? value.copy.manifestoStamp.filter((line): line is string => typeof line === "string")
+        : DEFAULT_HOME_CONTENT.copy.manifestoStamp,
+    },
   };
 }
 

@@ -85,7 +85,7 @@ export default function HomeHero({ content }: { content: HomeContent }) {
       })}
     </div>
     <div className="hero-shade" />
-    <div className="hero-copy"><h1><span className="hero-title-line">{content.heroTitle}</span><span className="hero-phrase-line"><em key={phraseIndex} className="phrase-fade">{content.heroPhrases[phraseIndex]}</em></span></h1><div className="hero-actions"><a className="button button-lime" href="#services">See how we can help <Arrow /></a></div></div>
-    <div className="hero-note"><span>KRUI, PESISIR BARAT · INDONESIA</span></div>
+    <div className="hero-copy"><h1><span className="hero-title-line">{content.heroTitle}</span><span className="hero-phrase-line"><em key={phraseIndex} className="phrase-fade">{content.heroPhrases[phraseIndex]}</em></span></h1><p className="hero-sub">{content.heroLead}</p><div className="hero-actions"><a className="button button-lime" href="#services">{content.copy.heroCta} <Arrow /></a></div></div>
+    <div className="hero-note"><span>{content.copy.heroLocation}</span></div>
   </section>;
 }
