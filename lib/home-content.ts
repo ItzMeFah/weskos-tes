@@ -16,6 +16,18 @@ export type HomeContent = {
   };
   introTitle: string;
   introBody: string;
+  services: { title: string; description: string }[];
+  manifesto: { eyebrow: string; title: string; body: string; buttonText: string };
+  contact: {
+    phone: string;
+    email: string;
+    instagram: string;
+    address: string;
+    eyebrow: string;
+    title: string;
+    body: string;
+    buttonText: string;
+  };
 };
 
 export const HOME_CONTENT_KEY = "home";
@@ -70,6 +82,30 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   },
   introTitle: "Local insight for your next move in Indonesia.",
   introBody: "Starting a company, sorting permits, exploring a property purchase, or extending your stay can bring a lot of questions. Weskos helps local and international clients understand the process and take the next step with confidence.",
+  services: [
+    { title: "Company formation & PT PMA", description: "Set up a local company or establish a PT PMA for foreign investment, with guidance through the required steps." },
+    { title: "Business permits", description: "Help navigating business licenses, registrations, and ongoing legal administration in Indonesia." },
+    { title: "Visa extensions", description: "Assistance for foreign nationals who need help understanding or extending their Indonesian visa or stay permit." },
+    { title: "Property due diligence", description: "Review documents and key considerations before purchasing property, with guidance for local and foreign clients." },
+    { title: "Property acquisition", description: "Local support as you explore a property purchase and work through the applicable legal process." },
+    { title: "Legal solutions & disputes", description: "Get help understanding business or property matters and the possible next steps for your situation." },
+  ],
+  manifesto: {
+    eyebrow: "LOCAL KNOWLEDGE, PERSONAL GUIDANCE",
+    title: "Understand the process.\nMove forward with confidence.",
+    body: "Company setup, permits, property checks, or visa extensions can raise a lot of questions. Tell us what you are planning and our team will help you find a clear place to start.",
+    buttonText: "Talk to our team",
+  },
+  contact: {
+    phone: "+62 815-1118-4631",
+    email: "weskos.bventure@gmail.com",
+    instagram: "@weskos.legalservice",
+    address: "Jl. Jaya Wijaya Kp. Jawa, Pesisir Tengah, Pesisir Barat, Lampung 34874",
+    eyebrow: "START WITH A CONVERSATION",
+    title: "Let's talk about\nyour plans in Krui.",
+    body: "Share what you are working toward. We can help you understand the next step.",
+    buttonText: "Message Weskos",
+  },
 };
 
 export function normalizeHomeContent(value: Partial<HomeContent> | null | undefined): HomeContent {
@@ -122,6 +158,12 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
       storefront: useOptimizedLocalImage(value?.photos?.storefront ?? DEFAULT_HOME_CONTENT.photos.storefront),
       boardArtwork: useOptimizedLocalImage(value?.photos?.boardArtwork ?? DEFAULT_HOME_CONTENT.photos.boardArtwork),
     },
+    services: DEFAULT_HOME_CONTENT.services.map((service, index) => ({
+      ...service,
+      ...(Array.isArray(value?.services) ? value.services[index] : undefined),
+    })),
+    manifesto: { ...DEFAULT_HOME_CONTENT.manifesto, ...value?.manifesto },
+    contact: { ...DEFAULT_HOME_CONTENT.contact, ...value?.contact },
   };
 }
 

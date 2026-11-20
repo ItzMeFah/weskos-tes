@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { supabase, uploadMedia } from "@/lib/supabase";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
@@ -24,12 +24,18 @@ export default function BackofficePanel() {
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const previewFrame = useRef<HTMLIFrameElement>(null);
 
   async function loadContent() {
     if (!supabase) { setStatus("not-configured"); return; }
     const { data, error } = await supabase.from("site_content").select("content").eq("id", HOME_CONTENT_KEY).maybeSingle();
     if (error) { setMessage("Could not load homepage content. Check the Supabase table and access policies."); setStatus("not-admin"); return; }
-    setContent(normalizeHomeContent(data?.content));
+    const normalized = normalizeHomeContent(data?.content);
+    setContent(normalized);
+    setSavedSnapshot(JSON.stringify(normalized));
     setStatus("admin");
   }
 
@@ -68,13 +74,16 @@ export default function BackofficePanel() {
   async function signOut() {
     await supabase?.auth.signOut();
     setStatus("signed-out"); setContent(DEFAULT_HOME_CONTENT);
+    setSavedSnapshot(JSON.stringify(DEFAULT_HOME_CONTENT));
   }
 
   async function saveContent() {
     setBusy(true); setMessage("");
     if (status === "admin" && supabase) {
+      const snapshot = JSON.stringify(content);
       const { error } = await supabase.from("site_content").upsert({ id: HOME_CONTENT_KEY, content, updated_at: new Date().toISOString() });
-      setMessage(error ? `Could not save: ${error.message}` : "Homepage saved to Supabase.");
+      setMessage(error ? `Could not save: ${error.message}` : "Homepage saved.");
+      if (!error) setSavedSnapshot(snapshot);
     }
     setBusy(false);
   }
@@ -96,8 +105,11 @@ export default function BackofficePanel() {
     setBusy(false);
   }
 
-  const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => setContent((current) => ({ ...current, [field]: value }));
-  const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } }));
+  const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
+  const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
+  const updateService = (index: number, field: "title" | "description", value: string) => { setMessage(""); setContent((current) => ({ ...current, services: current.services.map((service, i) => i === index ? { ...service, [field]: value } : service) })); };
+  const updateManifesto = <K extends keyof HomeContent["manifesto"]>(field: K, value: HomeContent["manifesto"][K]) => { setMessage(""); setContent((current) => ({ ...current, manifesto: { ...current.manifesto, [field]: value } })); };
+  const updateContact = <K extends keyof HomeContent["contact"]>(field: K, value: HomeContent["contact"][K]) => { setMessage(""); setContent((current) => ({ ...current, contact: { ...current.contact, [field]: value } })); };
   const movePhoto = (area: "hero" | "gallery", index: number, direction: -1 | 1) => {
     const field = area === "hero" ? "heroImages" : "gallery";
     const photos = [...(area === "hero" ? content.heroImages : content.photos.gallery)];
@@ -106,6 +118,13 @@ export default function BackofficePanel() {
     [photos[index], photos[target]] = [photos[target], photos[index]];
     if (area === "hero") update("heroImages", photos); else updatePhoto("gallery", photos);
   };
+
+  const isDirty = JSON.stringify(content) !== savedSnapshot;
+  const sendPreviewDraft = () => previewFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content }, window.location.origin);
+
+  useEffect(() => {
+    if (previewOpen) previewFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content }, window.location.origin);
+  }, [content, previewOpen]);
 
   if (status === "checking") return <main className="backoffice-shell"><div className="backoffice-loading">Loading Weskos backoffice…</div></main>;
   if (status === "not-configured") return <main className="backoffice-shell"><section className="login-card"><a className="admin-brand" href="/">← Back to Weskos</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p className="eyebrow">WESKOS LEGAL CO. · PRIVATE AREA</p><h1>Backoffice setup required.</h1><p className="login-copy">The CMS is locked until Supabase is connected. Configure the Supabase project URL and anon key, enable email and password sign-in, then create and allowlist an admin user.</p></section></main>;
@@ -118,7 +137,7 @@ export default function BackofficePanel() {
     {message && <p className="admin-message" role="status">{message}</p>}</section></main>;
 
   return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav><a className="admin-nav-active" href="#home-editor">⌂ &nbsp; Homepage</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>SUPABASE ADMIN</span><button onClick={signOut}>Sign out</button></div></aside>
-    <section className="admin-main"><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div><a className="admin-preview-link" href="/">Preview website <span>↗</span></a></div>
+    <section className="admin-main"><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div><button className="admin-preview-link" type="button" onClick={() => setPreviewOpen(true)}>Preview website <span>↗</span></button></div>
     <div className="admin-editor" id="home-editor"><div className="editor-title"><span>01</span><div><h2>Hero section</h2><p>Set the opening clip duration and how often the hero photos change.</p></div></div>
       <label>Hero title<input value={content.heroTitle} onChange={(event) => update("heroTitle", event.target.value)}/></label>
       <label>Rotating phrases <small>One phrase per line · changes every 4 seconds</small><textarea rows={4} value={content.heroPhrases.join("\n")} onChange={(event) => update("heroPhrases", event.target.value.split("\n").map((line) => line.trim()).filter(Boolean))}/></label>
@@ -137,6 +156,14 @@ export default function BackofficePanel() {
       </div>
     </div>
     <div className="admin-editor"><div className="editor-title"><span>03</span><div><h2>Our story</h2><p>Keep the introduction short and personal.</p></div></div><label>Section headline<input value={content.introTitle} onChange={(event) => update("introTitle", event.target.value)}/></label><label>Section description<textarea rows={4} value={content.introBody} onChange={(event) => update("introBody", event.target.value)}/></label></div>
-    <div className="admin-savebar"><p role="status">{message}</p><button className="admin-button" onClick={saveContent} disabled={busy}>{busy ? "Saving…" : "Save homepage"}</button></div>
-    </section></main>;
+    <div className="admin-editor"><div className="editor-title"><span>04</span><div><h2>Services</h2><p>Change the six service card titles and descriptions.</p></div></div>
+      {content.services.map((service, index) => <div className="admin-service-fields" key={`service-${index}`}><b>{String(index + 1).padStart(2, "0")} · Service</b><label>Title<input value={service.title} onChange={(event) => updateService(index, "title", event.target.value)}/></label><label>Description<textarea rows={3} value={service.description} onChange={(event) => updateService(index, "description", event.target.value)}/></label></div>)}
+    </div>
+    <div className="admin-editor"><div className="editor-title"><span>05</span><div><h2>Contact & calls to action</h2><p>Update contact details and the closing messages on the homepage.</p></div></div>
+      <div className="admin-contact-grid"><label>WhatsApp number<input value={content.contact.phone} onChange={(event) => updateContact("phone", event.target.value)}/></label><label>Contact email<input type="email" value={content.contact.email} onChange={(event) => updateContact("email", event.target.value)}/></label><label>Instagram username<input value={content.contact.instagram} onChange={(event) => updateContact("instagram", event.target.value)}/></label><label>Address<input value={content.contact.address} onChange={(event) => updateContact("address", event.target.value)}/></label></div>
+      <div className="admin-subsection"><h3>Feature banner</h3><label>Eyebrow<input value={content.manifesto.eyebrow} onChange={(event) => updateManifesto("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.manifesto.title} onChange={(event) => updateManifesto("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.manifesto.body} onChange={(event) => updateManifesto("body", event.target.value)}/></label><label>Button text<input value={content.manifesto.buttonText} onChange={(event) => updateManifesto("buttonText", event.target.value)}/></label></div>
+      <div className="admin-subsection"><h3>Contact section</h3><label>Eyebrow<input value={content.contact.eyebrow} onChange={(event) => updateContact("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.contact.title} onChange={(event) => updateContact("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.contact.body} onChange={(event) => updateContact("body", event.target.value)}/></label><label>Button text<input value={content.contact.buttonText} onChange={(event) => updateContact("buttonText", event.target.value)}/></label></div>
+    </div>
+    <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>
+    </section>{previewOpen && <div className="admin-preview-backdrop" onClick={() => setPreviewOpen(false)}><aside className="admin-preview-drawer" role="dialog" aria-modal="true" aria-label="Homepage preview" onClick={(event) => event.stopPropagation()}><div className="admin-preview-toolbar"><div><b>Homepage preview</b><small>Changes update as you edit.</small></div><div className="admin-preview-controls"><button type="button" className={previewMode === "desktop" ? "is-selected" : ""} onClick={() => setPreviewMode("desktop")}>Desktop</button><button type="button" className={previewMode === "mobile" ? "is-selected" : ""} onClick={() => setPreviewMode("mobile")}>Mobile</button><button type="button" className="admin-preview-close" onClick={() => setPreviewOpen(false)} aria-label="Close preview">×</button></div></div><div className={`admin-preview-viewport admin-preview-${previewMode}`}><iframe ref={previewFrame} src="/?admin-preview=1" title="Live Weskos homepage preview" onLoad={sendPreviewDraft}/></div></aside></div>}</main>;
 }

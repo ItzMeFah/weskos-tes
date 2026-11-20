@@ -154,3 +154,26 @@ html[data-theme="dark"] .site-header{background:#101b17;color:#f3f0e8}html[data-
 .hero-actions{position:relative;z-index:2;margin-top:20px}
 @media(max-width:700px){.hero-copy{top:46%;transform:translateY(-50%)}.hero-phrase-line{min-height:2.15em}.hero-actions{margin-top:18px}}
 
+
+/* Backoffice content controls and embedded live preview */
+.admin-preview-link{background:transparent;border:0;border-bottom:1px solid #253233;color:#253233;font:inherit;font-size:10px;padding:0 0 6px;cursor:pointer}
+.admin-service-fields{display:grid;gap:12px;padding:18px 0;border-bottom:1px solid #ecece6}
+.admin-service-fields:last-child{border-bottom:0;padding-bottom:0}
+.admin-service-fields>b{font-size:11px;color:#78832a}
+.admin-contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.admin-subsection{display:grid;gap:18px;margin-top:28px;padding-top:24px;border-top:1px solid #ecece6}
+.admin-subsection h3{font-size:14px;margin:0;font-weight:600}
+.admin-preview-backdrop{position:fixed;inset:0;z-index:80;background:rgba(10,18,18,.58);display:flex;justify-content:flex-end}
+.admin-preview-drawer{width:min(920px,94vw);height:100%;background:#f3f2ec;display:flex;flex-direction:column;box-shadow:-16px 0 60px rgba(0,0,0,.2)}
+.admin-preview-toolbar{min-height:66px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #d9d9d1;background:#fff}
+.admin-preview-toolbar>div:first-child{display:grid;gap:4px}
+.admin-preview-toolbar b{font-size:12px}
+.admin-preview-toolbar small{font-size:10px;color:#737b77}
+.admin-preview-controls{display:flex;align-items:center;gap:7px}
+.admin-preview-controls button{border:1px solid #d9d9d1;background:white;color:#263332;padding:8px 10px;font:inherit;font-size:10px;cursor:pointer}
+.admin-preview-controls button.is-selected{background:#172326;color:#fff;border-color:#172326}
+.admin-preview-controls button.admin-preview-close{font-size:20px;line-height:1;padding:4px 10px;border:0;background:transparent}
+.admin-preview-viewport{flex:1;min-height:0;overflow:auto;display:flex;justify-content:center;padding:18px}
+.admin-preview-viewport iframe{display:block;width:100%;height:100%;min-height:100%;border:0;background:#fff;box-shadow:0 4px 20px rgba(20,30,25,.1)}
+.admin-preview-viewport.admin-preview-mobile iframe{width:390px;max-width:100%;height:100%;flex:none;border:8px solid #172326;border-radius:18px}
+@media(max-width:560px){.admin-contact-grid{grid-template-columns:1fr}.admin-preview-drawer{width:100vw}.admin-preview-toolbar{align-items:flex-start}.admin-preview-controls{gap:4px}.admin-preview-controls button{padding:7px}.admin-preview-viewport{padding:10px}}
