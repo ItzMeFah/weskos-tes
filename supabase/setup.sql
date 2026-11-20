@@ -68,7 +68,7 @@ on conflict (id) do update set
   file_size_limit = 10485760,
   allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'video/mp4'];
 
-alter table storage.objects enable row level security;
+-- Supabase Storage already enables RLS on storage.objects; only add bucket policies here.
 drop policy if exists "Weskos media is public" on storage.objects;
 create policy "Weskos media is public"
   on storage.objects for select to anon, authenticated
@@ -98,9 +98,6 @@ create policy "Weskos admins can delete media"
     bucket_id = 'weskos-media'
     and exists (select 1 from public.admin_users where user_id = (select auth.uid()))
   );
-grant select on storage.objects to anon, authenticated;
-grant insert, update, delete on storage.objects to authenticated;
-
 -- Optional product catalog table retained for the public site's published products.
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
