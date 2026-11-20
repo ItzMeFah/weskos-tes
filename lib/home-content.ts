@@ -1,4 +1,5 @@
 export type HomeContent = {
+  sectionOrder: ("intro" | "services" | "photoStory" | "manifesto" | "contact")[];
   heroTitle: string;
   heroPhrases: string[];
   heroLead: string;
@@ -83,6 +84,7 @@ function useOptimizedLocalImage(src: string): string {
 }
 
 export const DEFAULT_HOME_CONTENT: HomeContent = {
+  sectionOrder: ["intro", "services", "photoStory", "manifesto", "contact"],
   heroTitle: "Make your next move.",
   heroPhrases: ["Start your business with clarity.", "Know the land before you sign.", "Handle permits with local guidance.", "Plan your stay in Indonesia."],
   heroLead: "From company setup and permits to property and visa matters, get practical legal guidance rooted in Krui.",
@@ -145,21 +147,21 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
 };
 
 export function normalizeHomeContent(value: Partial<HomeContent> | null | undefined): HomeContent {
+  const validSections: HomeContent["sectionOrder"] = ["intro", "services", "photoStory", "manifesto", "contact"];
+  const requestedSections = Array.isArray(value?.sectionOrder)
+    ? [...new Set(value.sectionOrder.filter((section): section is HomeContent["sectionOrder"][number] => validSections.includes(section as HomeContent["sectionOrder"][number])))]
+    : [];
   const seconds = (candidate: unknown, fallback: number, min: number, max: number) => {
     const number = Number(candidate);
     return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.round(number))) : fallback;
   };
   const configuredHeroImages = Array.isArray(value?.heroImages)
     ? value.heroImages.filter((photo): photo is string => typeof photo === "string" && !/instagram-krui-(surf|green)/i.test(photo)).map(useOptimizedLocalImage)
-    : [];
-  const surfImageSet = new Set(HERO_SURF_IMAGES);
-  const configuredSurfImages = configuredHeroImages.filter((photo) => surfImageSet.has(photo));
-  const surfImages = [...configuredSurfImages, ...HERO_SURF_IMAGES.filter((photo) => !configuredSurfImages.includes(photo))];
-  const customImages = [...new Set(configuredHeroImages.filter((photo) => !HERO_LANDSCAPE_IMAGES.includes(photo) && !surfImageSet.has(photo)))];
-  const heroImages = [...HERO_LANDSCAPE_IMAGES, ...customImages, ...surfImages];
+    : DEFAULT_HOME_CONTENT.heroImages;
   return {
     ...DEFAULT_HOME_CONTENT,
     ...value,
+    sectionOrder: [...requestedSections, ...validSections.filter((section) => !requestedSections.includes(section))],
     // Move the original surf-first defaults forward while preserving any copy
     // the Weskos team has already customized in Supabase.
     heroTitle: ["Ride the coast.", "Build in Krui.", "Build with confidence."].includes(value?.heroTitle ?? "") ? DEFAULT_HOME_CONTENT.heroTitle : value?.heroTitle ?? DEFAULT_HOME_CONTENT.heroTitle,
@@ -172,7 +174,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
       ["Set up your company with clarity.", "Navigate property with local guidance.", "Handle permits with confidence.", "Plan your visa extension."],
       ["Set up your PT PMA with clarity.", "Make your business legal in Indonesia.", "Explore property with local guidance.", "Extend your stay with confidence."],
     ].some((legacy) => value.heroPhrases!.length === legacy.length && value.heroPhrases!.every((phrase, index) => phrase === legacy[index])) ? value.heroPhrases : DEFAULT_HOME_CONTENT.heroPhrases,
-    heroImages: heroImages.length > HERO_LANDSCAPE_IMAGES.length ? heroImages : DEFAULT_HOME_CONTENT.heroImages,
+    heroImages: configuredHeroImages,
     heroVideoDurationSeconds: seconds(value?.heroVideoDurationSeconds, DEFAULT_HOME_CONTENT.heroVideoDurationSeconds, 0, 30),
     heroSlideIntervalSeconds: seconds(value?.heroSlideIntervalSeconds, DEFAULT_HOME_CONTENT.heroSlideIntervalSeconds, 3, 120),
     photos: {
@@ -186,10 +188,8 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
         ["/images/wave-rider-wide.webp", "/images/krui-surf-turn.webp", "/images/air-surf-session.webp", "/images/barrel-session.webp"],
       ].some((legacy) => value.photos!.gallery!.length === legacy.length && value.photos!.gallery!.every((photo, index) => photo === legacy[index]))
         ? DEFAULT_HOME_CONTENT.photos.gallery
-        : Array.isArray(value?.photos?.gallery) && value.photos.gallery.length
-          ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item)).length
-            ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item)).map(useOptimizedLocalImage)
-            : DEFAULT_HOME_CONTENT.photos.gallery
+        : Array.isArray(value?.photos?.gallery)
+          ? value.photos.gallery.filter((item): item is string => typeof item === "string" && !/instagram-krui-(surf|green)/i.test(item)).map(useOptimizedLocalImage)
           : DEFAULT_HOME_CONTENT.photos.gallery,
       coastAndLocation: Array.isArray(value?.photos?.coastAndLocation)
         ? value.photos.coastAndLocation.filter((item): item is string => typeof item === "string")

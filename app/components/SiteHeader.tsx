@@ -36,11 +36,11 @@ export default function SiteHeader({ content = DEFAULT_HOME_CONTENT }: { content
   return <header className="site-header">
     <a href="/#home" className="site-brand" aria-label={content.copy.homeAriaLabel}><img src="/images/weskos-logo.webp" alt={content.copy.homeAriaLabel}/></a>
     <nav className="main-nav" aria-label={content.copy.navAriaLabel}>
-      <a className="nav-link" href="/#home">{content.copy.navHome}</a>
-      <div className="nav-dropdown services-dropdown"><a className="nav-link" href="/#services" aria-haspopup="true">{content.copy.navServices}</a><div className="nav-menu" aria-label={content.copy.servicesMenuAriaLabel}>{content.services.map((service, index) => <a key={service.title} href={serviceRoutes[index]}>{service.title}</a>)}</div></div>
-      <a className="nav-link" href="/#about">{content.copy.navAbout}</a>
-      <div className="nav-dropdown insights-dropdown"><a className="nav-link" href="/insights/surf" aria-haspopup="true">{content.copy.navInsights}</a><div className="nav-menu" aria-label={content.copy.insightsMenuAriaLabel}><a href="/insights/product">{content.copy.navProduct}</a><a href="/insights/surf">{content.copy.navSurf}</a></div></div>
-      <a className="nav-link" href="/#contact">{content.copy.navContact}</a>
+      <a className="nav-link" href="/#home"><span data-cms-field="copy.navHome">{content.copy.navHome}</span></a>
+      <div className="nav-dropdown services-dropdown"><a className="nav-link" href="/#services" aria-haspopup="true"><span data-cms-field="copy.navServices">{content.copy.navServices}</span></a><div className="nav-menu" aria-label={content.copy.servicesMenuAriaLabel}>{content.services.map((service, index) => <a key={service.title} href={serviceRoutes[index]}><span data-cms-field={"services[" + index + "].title"}>{service.title}</span></a>)}</div></div>
+      <a className="nav-link" href="/#about"><span data-cms-field="copy.navAbout">{content.copy.navAbout}</span></a>
+      <div className="nav-dropdown insights-dropdown"><a className="nav-link" href="/insights/surf" aria-haspopup="true"><span data-cms-field="copy.navInsights">{content.copy.navInsights}</span></a><div className="nav-menu" aria-label={content.copy.insightsMenuAriaLabel}><a href="/insights/product"><span data-cms-field="copy.navProduct">{content.copy.navProduct}</span></a><a href="/insights/surf"><span data-cms-field="copy.navSurf">{content.copy.navSurf}</span></a></div></div>
+      <a className="nav-link" href="/#contact"><span data-cms-field="copy.navContact">{content.copy.navContact}</span></a>
     </nav>
     <div className="header-actions" aria-label={content.copy.headerActionsAriaLabel}>
       <a href={whatsapp} aria-label={content.copy.navWhatsappLabel}><Icon name="whatsapp"/></a>

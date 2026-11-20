@@ -7,6 +7,7 @@ values (
   'home',
   $$
   {
+    "sectionOrder": ["intro", "services", "photoStory", "manifesto", "contact"],
     "heroTitle": "Make your next move.",
     "heroPhrases": [
       "Start your business with clarity.",

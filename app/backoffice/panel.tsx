@@ -8,7 +8,30 @@ type AdminStatus = "checking" | "not-configured" | "signed-out" | "admin" | "not
 type EditorTab = "hero" | "photos" | "copy" | "story" | "services" | "contact" | "account";
 type CopyTextKey = Exclude<keyof HomeContent["copy"], "manifestoStamp">;
 type PhotoArea = "hero" | "gallery" | "coastAndLocation" | "apparel" | "surfGoods" | "manifesto" | "storefront" | "boardArtwork";
+type HomeSection = HomeContent["sectionOrder"][number];
+const SECTION_LABELS: Record<HomeSection, string> = { intro: "Introduction", services: "Services", photoStory: "Photo story", manifesto: "Feature banner", contact: "Contact" };
 const LOCAL_PREVIEW_KEY = "weskos-local-preview-content";
+
+function setContentAtPath(content: HomeContent, path: string, value: string): HomeContent {
+  if (!/^[\w.[\]-]+$/.test(path)) return content;
+  const parts = path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
+  function replace(current: unknown, index: number): unknown {
+    if (index >= parts.length) return value;
+    const part = parts[index];
+    if (Array.isArray(current)) {
+      const arrayIndex = Number(part);
+      if (!Number.isInteger(arrayIndex) || arrayIndex < 0 || arrayIndex >= current.length) return current;
+      const copy = [...current];
+      copy[arrayIndex] = replace(copy[arrayIndex], index + 1);
+      return copy;
+    }
+    if (current && typeof current === "object" && Object.hasOwn(current, part)) {
+      return { ...current, [part]: replace((current as Record<string, unknown>)[part], index + 1) };
+    }
+    return current;
+  }
+  return replace(content, 0) as HomeContent;
+}
 
 async function localImageUrl(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
@@ -50,10 +73,13 @@ export default function BackofficePanel() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<"manual" | "visual">("manual");
+  const [draggedSection, setDraggedSection] = useState<HomeSection | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [activeTab, setActiveTab] = useState<EditorTab>("hero");
   const [localPreview, setLocalPreview] = useState(false);
   const previewFrame = useRef<HTMLIFrameElement>(null);
+  const visualFrame = useRef<HTMLIFrameElement>(null);
 
   async function loadContent() {
     if (!supabase) { setStatus("not-configured"); return; }
@@ -199,6 +225,19 @@ export default function BackofficePanel() {
 
   const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
   const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
+  const removeVisualPhoto = (area: PhotoArea, index: number) => {
+    if (area === "hero") {
+      if (content.heroImages.length <= 1) { setMessage("Keep at least one hero photo. Add another photo before deleting this one."); return; }
+      update("heroImages", content.heroImages.filter((_, photoIndex) => photoIndex !== index));
+    } else if (area === "gallery" || area === "coastAndLocation") {
+      const photos = content.photos[area] ?? [];
+      if (index < 0 || index >= photos.length) return;
+      updatePhoto(area, photos.filter((_, photoIndex) => photoIndex !== index));
+    } else if (area === "apparel" || area === "surfGoods" || area === "manifesto" || area === "storefront") {
+      updatePhoto(area, "");
+    }
+    setMessage("Photo removed from the homepage draft. Save homepage to publish your changes.");
+  };
   const updateService = (index: number, field: "category" | "title" | "description", value: string) => { setMessage(""); setContent((current) => ({ ...current, services: current.services.map((service, i) => i === index ? { ...service, [field]: value } : service) })); };
   const updateCopy = <K extends CopyTextKey>(field: K, value: HomeContent["copy"][K]) => { setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, [field]: value } })); };
   const updateManifestoStamp = (index: number, value: string) => { setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, manifestoStamp: current.copy.manifestoStamp.map((line, i) => i === index ? value : line) } })); };
@@ -224,11 +263,42 @@ export default function BackofficePanel() {
   ];
   const multilineCopyFields = new Set<CopyTextKey>(["servicesLead", "footerBrandText"]);
   const isDirty = JSON.stringify(content) !== savedSnapshot;
-  const sendPreviewDraft = () => previewFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content }, window.location.origin);
+  const sendPreviewDraft = () => {
+    const draft = { type: "weskos-admin-preview", content };
+    previewFrame.current?.contentWindow?.postMessage(draft, window.location.origin);
+    visualFrame.current?.contentWindow?.postMessage(draft, window.location.origin);
+  };
+
+  const moveSection = (from: number, to: number) => setContent((current) => {
+    if (to < 0 || to >= current.sectionOrder.length) return current;
+    const sectionOrder = [...current.sectionOrder];
+    const [section] = sectionOrder.splice(from, 1);
+    sectionOrder.splice(to, 0, section);
+    return { ...current, sectionOrder };
+  });
 
   useEffect(() => {
-    if (previewOpen) previewFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content }, window.location.origin);
-  }, [content, previewOpen]);
+    if (previewOpen || editorMode === "visual") sendPreviewDraft();
+  }, [content, previewOpen, editorMode]);
+
+  useEffect(() => {
+    const receiveVisualEdit = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "weskos-visual-edit" && typeof event.data.field === "string" && typeof event.data.value === "string") {
+        setMessage("");
+        setContent((current) => setContentAtPath(current, event.data.field, event.data.value));
+      }
+      const droppedFile = event.data?.file;
+      if (event.data?.type === "weskos-visual-photo-drop" && droppedFile && typeof droppedFile.type === "string" && typeof droppedFile.arrayBuffer === "function" && typeof event.data.area === "string") {
+        void uploadPhoto(droppedFile as File, event.data.area as PhotoArea, typeof event.data.index === "number" ? event.data.index : undefined);
+      }
+      if (event.data?.type === "weskos-visual-photo-delete" && typeof event.data.area === "string" && typeof event.data.index === "number") {
+        removeVisualPhoto(event.data.area as PhotoArea, event.data.index);
+      }
+    };
+    window.addEventListener("message", receiveVisualEdit);
+    return () => window.removeEventListener("message", receiveVisualEdit);
+  }, [content, localPreview, status]);
 
   if (status === "checking") return <main className="backoffice-shell"><div className="backoffice-loading">Loading Weskos backoffice…</div></main>;
   if (status === "not-configured") return <main className="backoffice-shell"><section className="login-card"><a className="admin-brand" href="/">← Back to Weskos</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p className="eyebrow">WESKOS LEGAL CO. · PRIVATE AREA</p><h1>Backoffice setup required.</h1><p className="login-copy">The CMS is locked until Supabase is connected. Configure the Supabase project URL and anon key, enable email and password sign-in, then create and allowlist an admin user.</p></section></main>;
@@ -242,9 +312,10 @@ export default function BackofficePanel() {
 
   return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav><a className="admin-nav-active" href="#home-editor">⌂ &nbsp; Homepage</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>{localPreview ? "LOCAL PREVIEW" : "SUPABASE ADMIN"}</span>{localPreview ? <a href="/">Exit</a> : <button onClick={signOut}>Sign out</button>}</div></aside>
     <section className="admin-main"><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div><button className="admin-preview-link" type="button" onClick={() => setPreviewOpen(true)}>Preview website <span>↗</span></button></div>
+    <div className="admin-editor-modes" role="group" aria-label="Editing mode"><button type="button" className={editorMode === "manual" ? "is-active" : ""} aria-pressed={editorMode === "manual"} onClick={() => setEditorMode("manual")}>Manual</button><button type="button" className={editorMode === "visual" ? "is-active" : ""} aria-pressed={editorMode === "visual"} onClick={() => setEditorMode("visual")}>Visual</button></div>
     {localPreview && <p className="local-preview-note">Local preview: edits are saved only in this browser. Supabase and live website are untouched.</p>}
-    <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["copy", "All text"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"], ["account", "Account"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>
-    <div className="admin-tab-content" id="editor-panel" role="tabpanel" aria-labelledby={`editor-tab-${activeTab}`}>
+    {editorMode === "manual" && <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["copy", "All text"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"], ["account", "Account"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>}
+    {editorMode === "manual" && <div className="admin-tab-content" id="editor-panel" role="tabpanel" aria-labelledby={`editor-tab-${activeTab}`}>
     {activeTab === "hero" && <div className="admin-editor" id="home-editor"><div className="editor-title"><span>01</span><div><h2>Hero section</h2><p>Set the opening clip duration and how often the hero photos change.</p></div></div>
       <label>Hero title<input value={content.heroTitle} onChange={(event) => update("heroTitle", event.target.value)}/></label>
       <label>Rotating phrases <small>One phrase per line · changes every 4 seconds</small><textarea rows={4} value={content.heroPhrases.join("\n")} onChange={(event) => update("heroPhrases", event.target.value.split("\n").map((line) => line.trim()).filter(Boolean))}/></label>
@@ -277,7 +348,8 @@ export default function BackofficePanel() {
     {activeTab === "account" && <div className="admin-editor"><div className="editor-title"><span>07</span><div><h2>Account password</h2><p>Change the password you use to sign in to this Weskos admin account.</p></div></div>
       {localPreview ? <p className="admin-account-note">Password changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-password-form" onSubmit={(event) => void changePassword(event)}><label>New password<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)}/></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)}/></label><button className="admin-button" type="submit" disabled={busy}>{busy ? "Changing password…" : "Change password"}</button></form>}
     </div>}
-    </div>
+    </div>}
+    {editorMode === "visual" && <div className="visual-editor-shell"><aside className="visual-section-panel"><h2>Page sections</h2><p>Drag to change their order. Double-click page text to edit it.</p><div className="visual-section-list">{content.sectionOrder.map((section, index) => <div key={section} className={`visual-section-row ${draggedSection === section ? "is-dragging" : ""}`} draggable onDragStart={(event) => { setDraggedSection(section); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", section); }} onDragEnd={() => setDraggedSection(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const dragged = event.dataTransfer.getData("text/plain") as HomeSection; const from = content.sectionOrder.indexOf(dragged); if (from >= 0) moveSection(from, index); setDraggedSection(null); }}><button type="button" aria-label={`Drag ${SECTION_LABELS[section]}`}>⠿ &nbsp;{SECTION_LABELS[section]}</button><span className="visual-section-actions"><button type="button" aria-label={`Move ${SECTION_LABELS[section]} up`} disabled={index === 0} onClick={() => moveSection(index, index - 1)}>↑</button><button type="button" aria-label={`Move ${SECTION_LABELS[section]} down`} disabled={index === content.sectionOrder.length - 1} onClick={() => moveSection(index, index + 1)}>↓</button></span></div>)}</div></aside><div className="visual-frame-wrap"><iframe ref={visualFrame} src="/?admin-preview=1&visual-edit=1" title="Visual homepage editor" onLoad={sendPreviewDraft}/></div></div>}
     <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>
     </section>{previewOpen && <div className="admin-preview-backdrop" onClick={() => setPreviewOpen(false)}><aside className="admin-preview-drawer" role="dialog" aria-modal="true" aria-label="Homepage preview" onClick={(event) => event.stopPropagation()}><div className="admin-preview-toolbar"><div><b>Homepage preview</b><small>Changes update as you edit.</small></div><div className="admin-preview-controls"><button type="button" className={previewMode === "desktop" ? "is-selected" : ""} onClick={() => setPreviewMode("desktop")}>Desktop</button><button type="button" className={previewMode === "mobile" ? "is-selected" : ""} onClick={() => setPreviewMode("mobile")}>Mobile</button><button type="button" className="admin-preview-close" onClick={() => setPreviewOpen(false)} aria-label="Close preview">×</button></div></div><div className={`admin-preview-viewport admin-preview-${previewMode}`}><iframe ref={previewFrame} src="/?admin-preview=1" title="Live Weskos homepage preview" onLoad={sendPreviewDraft}/></div></aside></div>}</main>;
 }
