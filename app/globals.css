@@ -177,3 +177,10 @@ html[data-theme="dark"] .site-header{background:#101b17;color:#f3f0e8}html[data-
 .admin-preview-viewport iframe{display:block;width:100%;height:100%;min-height:100%;border:0;background:#fff;box-shadow:0 4px 20px rgba(20,30,25,.1)}
 .admin-preview-viewport.admin-preview-mobile iframe{width:390px;max-width:100%;height:100%;flex:none;border:8px solid #172326;border-radius:18px}
 @media(max-width:560px){.admin-contact-grid{grid-template-columns:1fr}.admin-preview-drawer{width:100vw}.admin-preview-toolbar{align-items:flex-start}.admin-preview-controls{gap:4px}.admin-preview-controls button{padding:7px}.admin-preview-viewport{padding:10px}}
+.admin-editor-tabs{display:flex;justify-content:center;gap:7px;margin:0 auto 22px;padding:6px;width:max-content;max-width:100%;background:#e8e8df;border-radius:4px;overflow-x:auto}
+.admin-editor-tabs button{display:flex;align-items:center;gap:8px;flex:0 0 auto;padding:11px 16px;border:0;background:transparent;color:#56615e;font:inherit;font-size:11px;font-weight:600;white-space:nowrap;cursor:pointer}
+.admin-editor-tabs button span{font-size:8px;letter-spacing:.08em;color:#929a94}
+.admin-editor-tabs button.is-active{background:#fff;color:#172326;box-shadow:0 2px 8px rgba(20,30,25,.08)}
+.admin-editor-tabs button.is-active span{color:#78832a}
+.admin-tab-content{min-height:280px}
+@media(max-width:700px){.admin-editor-tabs{justify-content:flex-start;width:100%;gap:2px}.admin-editor-tabs button{padding:10px 11px;font-size:10px}}
