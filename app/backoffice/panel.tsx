@@ -72,13 +72,11 @@ export default function BackofficePanel() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"manual" | "visual">("manual");
   const [draggedSection, setDraggedSection] = useState<HomeSection | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [activeTab, setActiveTab] = useState<EditorTab>("hero");
   const [localPreview, setLocalPreview] = useState(false);
-  const previewFrame = useRef<HTMLIFrameElement>(null);
   const visualFrame = useRef<HTMLIFrameElement>(null);
 
   async function loadContent() {
@@ -223,6 +221,21 @@ export default function BackofficePanel() {
     setBusy(false);
   }
 
+  async function uploadHeroVideo(file: File | undefined) {
+    if (!file) return;
+    setBusy(true); setMessage("");
+    try {
+      if (status !== "admin" || localPreview) throw new Error("Sign in to Supabase to upload the hero video.");
+      const videoUrl = await uploadMedia(file, "home");
+      update("heroVideo", videoUrl);
+      setMessage("Hero video uploaded. Save homepage to publish your changes.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Video upload failed. Check your storage settings.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
   const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
   const removeVisualPhoto = (area: PhotoArea, index: number) => {
@@ -265,7 +278,6 @@ export default function BackofficePanel() {
   const isDirty = JSON.stringify(content) !== savedSnapshot;
   const sendPreviewDraft = () => {
     const draft = { type: "weskos-admin-preview", content };
-    previewFrame.current?.contentWindow?.postMessage(draft, window.location.origin);
     visualFrame.current?.contentWindow?.postMessage(draft, window.location.origin);
   };
 
@@ -278,8 +290,8 @@ export default function BackofficePanel() {
   });
 
   useEffect(() => {
-    if (previewOpen || editorMode === "visual") sendPreviewDraft();
-  }, [content, previewOpen, editorMode]);
+    if (editorMode === "visual") sendPreviewDraft();
+  }, [content, editorMode]);
 
   useEffect(() => {
     const receiveVisualEdit = (event: MessageEvent) => {
@@ -311,19 +323,19 @@ export default function BackofficePanel() {
     {message && <p className="admin-message" role="status">{message}</p>}</section></main>;
 
   return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav><a className="admin-nav-active" href="#home-editor">⌂ &nbsp; Homepage</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>{localPreview ? "LOCAL PREVIEW" : "SUPABASE ADMIN"}</span>{localPreview ? <a href="/">Exit</a> : <button onClick={signOut}>Sign out</button>}</div></aside>
-    <section className="admin-main"><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div><button className="admin-preview-link" type="button" onClick={() => setPreviewOpen(true)}>Preview website <span>↗</span></button></div>
+    <section className={`admin-main ${editorMode === "visual" ? "admin-main-visual" : ""}`}><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div></div>
     <div className="admin-editor-modes" role="group" aria-label="Editing mode"><button type="button" className={editorMode === "manual" ? "is-active" : ""} aria-pressed={editorMode === "manual"} onClick={() => setEditorMode("manual")}>Manual</button><button type="button" className={editorMode === "visual" ? "is-active" : ""} aria-pressed={editorMode === "visual"} onClick={() => setEditorMode("visual")}>Visual</button></div>
     {localPreview && <p className="local-preview-note">Local preview: edits are saved only in this browser. Supabase and live website are untouched.</p>}
     {editorMode === "manual" && <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["copy", "All text"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"], ["account", "Account"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>}
     {editorMode === "manual" && <div className="admin-tab-content" id="editor-panel" role="tabpanel" aria-labelledby={`editor-tab-${activeTab}`}>
     {activeTab === "hero" && <div className="admin-editor" id="home-editor"><div className="editor-title"><span>01</span><div><h2>Hero section</h2><p>Set the opening clip duration and how often the hero photos change.</p></div></div>
       <label>Hero title<input value={content.heroTitle} onChange={(event) => update("heroTitle", event.target.value)}/></label>
-      <label>Rotating phrases <small>One phrase per line · changes every 4 seconds</small><textarea rows={4} value={content.heroPhrases.join("\n")} onChange={(event) => update("heroPhrases", event.target.value.split("\n").map((line) => line.trim()).filter(Boolean))}/></label>
+      <label>Rotating phrases <small>One phrase per line · changes every {content.heroPhraseIntervalSeconds} seconds</small><textarea rows={4} value={content.heroPhrases.join("\n")} onChange={(event) => update("heroPhrases", event.target.value.split("\n").map((line) => line.trim()).filter(Boolean))}/></label>
       <label>Supporting text<textarea rows={3} value={content.heroLead} onChange={(event) => update("heroLead", event.target.value)}/></label>
-      <div className="media-settings"><label>Opening video duration <small>Seconds before the photo rotation starts</small><span className="number-field"><input type="number" min={0} max={30} value={content.heroVideoDurationSeconds} onChange={(event) => update("heroVideoDurationSeconds", Number(event.target.value))}/><b>sec</b></span></label><label>Hero photo interval <small>Time each photo stays on screen</small><span className="number-field"><input type="number" min={3} max={120} value={content.heroSlideIntervalSeconds} onChange={(event) => update("heroSlideIntervalSeconds", Number(event.target.value))}/><b>sec</b></span></label></div>
+      <div className="media-settings"><label>Opening video duration <small>Seconds before the photo rotation starts</small><span className="number-field"><input type="number" min={0} max={30} value={content.heroVideoDurationSeconds} onChange={(event) => update("heroVideoDurationSeconds", Number(event.target.value))}/><b>sec</b></span></label><label>Hero photo interval <small>Time each photo stays on screen</small><span className="number-field"><input type="number" min={3} max={120} value={content.heroSlideIntervalSeconds} onChange={(event) => update("heroSlideIntervalSeconds", Number(event.target.value))}/><b>sec</b></span></label><label>Hero phrase interval <small>Time each phrase stays on screen</small><span className="number-field"><input type="number" min={1} max={60} value={content.heroPhraseIntervalSeconds} onChange={(event) => update("heroPhraseIntervalSeconds", Number(event.target.value))}/><b>sec</b></span></label></div>
       <label>Opening video URL<input value={content.heroVideo} onChange={(event) => update("heroVideo", event.target.value)} placeholder="/images/krui-surf-intro.mp4"/><small>Use a local path or a public Supabase Storage URL. Leave blank to skip the opening video.</small></label>
-      {status === "admin" && !localPreview && <label>Replace opening video<input type="file" accept="video/mp4" disabled={busy} onChange={(event) => { void (async () => { const file = event.target.files?.[0]; if (!file) return; setBusy(true); try { const url = await uploadMedia(file, "home"); update("heroVideo", url); setMessage("Opening video uploaded. Save homepage to publish it."); } catch (error) { setMessage(error instanceof Error ? error.message : "Video upload failed."); } finally { setBusy(false); } })(); event.currentTarget.value = ""; }}/></label>}
-      <div className="media-manager"><div className="media-manager-heading"><div><b>Hero photos</b><small>Krui landscapes play first, then the surf video and surf photos. The first photo is the video poster.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "hero"); event.currentTarget.value = ""; }}/></label></div>
+      {status === "admin" && !localPreview && <label>Replace opening video<input type="file" accept="video/mp4" disabled={busy} onChange={(event) => { void uploadHeroVideo(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>}
+      <div className="media-manager"><div className="media-manager-heading"><div><b>Hero photos</b><small>Photos rotate in this order, with the opening video after the first four. The first photo is the video poster.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "hero"); event.currentTarget.value = ""; }}/></label></div>
         <div className="media-list">{content.heroImages.map((src, index) => <PhotoRow key={`hero-${index}`} src={src} label="Hero" index={index} count={content.heroImages.length} busy={busy} onUrl={(value) => update("heroImages", content.heroImages.map((photo, i) => i === index ? value : photo))} onMove={(direction) => movePhoto("hero", index, direction)} onRemove={() => update("heroImages", content.heroImages.filter((_, i) => i !== index))} onFile={(file) => void uploadPhoto(file, "hero", index)} allowRemove={content.heroImages.length > 1}/>)}</div>
       </div>
     </div>}
@@ -349,7 +361,32 @@ export default function BackofficePanel() {
       {localPreview ? <p className="admin-account-note">Password changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-password-form" onSubmit={(event) => void changePassword(event)}><label>New password<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)}/></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)}/></label><button className="admin-button" type="submit" disabled={busy}>{busy ? "Changing password…" : "Change password"}</button></form>}
     </div>}
     </div>}
-    {editorMode === "visual" && <div className="visual-editor-shell"><aside className="visual-section-panel"><h2>Page sections</h2><p>Drag to change their order. Double-click page text to edit it.</p><div className="visual-section-list">{content.sectionOrder.map((section, index) => <div key={section} className={`visual-section-row ${draggedSection === section ? "is-dragging" : ""}`} draggable onDragStart={(event) => { setDraggedSection(section); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", section); }} onDragEnd={() => setDraggedSection(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const dragged = event.dataTransfer.getData("text/plain") as HomeSection; const from = content.sectionOrder.indexOf(dragged); if (from >= 0) moveSection(from, index); setDraggedSection(null); }}><button type="button" aria-label={`Drag ${SECTION_LABELS[section]}`}>⠿ &nbsp;{SECTION_LABELS[section]}</button><span className="visual-section-actions"><button type="button" aria-label={`Move ${SECTION_LABELS[section]} up`} disabled={index === 0} onClick={() => moveSection(index, index - 1)}>↑</button><button type="button" aria-label={`Move ${SECTION_LABELS[section]} down`} disabled={index === content.sectionOrder.length - 1} onClick={() => moveSection(index, index + 1)}>↓</button></span></div>)}</div></aside><div className="visual-frame-wrap"><iframe ref={visualFrame} src="/?admin-preview=1&visual-edit=1" title="Visual homepage editor" onLoad={sendPreviewDraft}/></div></div>}
+    {editorMode === "visual" && <div className="visual-editor-shell">
+      <aside className="visual-section-panel">
+        <h2>Page sections</h2>
+        <p>Drag to change their order. Double-click page text to edit it.</p>
+        <div className="visual-section-list">{content.sectionOrder.map((section, index) => <div key={section} className={`visual-section-row ${draggedSection === section ? "is-dragging" : ""}`} draggable onDragStart={(event) => { setDraggedSection(section); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", section); }} onDragEnd={() => setDraggedSection(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const dragged = event.dataTransfer.getData("text/plain") as HomeSection; const from = content.sectionOrder.indexOf(dragged); if (from >= 0) moveSection(from, index); setDraggedSection(null); }}><button type="button" aria-label={`Drag ${SECTION_LABELS[section]}`}>⠿ &nbsp;{SECTION_LABELS[section]}</button><span className="visual-section-actions"><button type="button" aria-label={`Move ${SECTION_LABELS[section]} up`} disabled={index === 0} onClick={() => moveSection(index, index - 1)}>↑</button><button type="button" aria-label={`Move ${SECTION_LABELS[section]} down`} disabled={index === content.sectionOrder.length - 1} onClick={() => moveSection(index, index + 1)}>↓</button></span></div>)}</div>
+        <details className="visual-control-group" open>
+          <summary>Hero rotation</summary>
+          <label>Hero title<input value={content.heroTitle} onChange={(event) => update("heroTitle", event.target.value)}/></label>
+          <label>Rotating phrases <small>One phrase per line</small><textarea rows={4} value={content.heroPhrases.join("\n")} onChange={(event) => update("heroPhrases", event.target.value.split("\n").map((line) => line.trim()).filter(Boolean))}/></label>
+          <label>Opening video URL<input value={content.heroVideo} onChange={(event) => update("heroVideo", event.target.value)} placeholder="/images/krui-surf-intro.mp4"/></label>
+          {status === "admin" && !localPreview && <label className="visual-add-photo">Replace opening video<input type="file" accept="video/mp4" disabled={busy} onChange={(event) => { void uploadHeroVideo(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>}
+          <div className="visual-timing-grid">
+            <label>Video duration (sec)<input type="number" min={0} max={30} value={content.heroVideoDurationSeconds} onChange={(event) => update("heroVideoDurationSeconds", Number(event.target.value))}/></label>
+            <label>Photo interval (sec)<input type="number" min={3} max={120} value={content.heroSlideIntervalSeconds} onChange={(event) => update("heroSlideIntervalSeconds", Number(event.target.value))}/></label>
+            <label>Phrase interval (sec)<input type="number" min={1} max={60} value={content.heroPhraseIntervalSeconds} onChange={(event) => update("heroPhraseIntervalSeconds", Number(event.target.value))}/></label>
+          </div>
+          <label className="visual-add-photo">+ Add hero photo<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "hero"); event.currentTarget.value = ""; }}/></label>
+          <ol className="visual-hero-photo-list">{content.heroImages.map((src, index) => <li key={`${src}-${index}`}><img src={src} alt=""/><span>{String(index + 1).padStart(2, "0")} · {src.split("/").pop()}</span><div><button type="button" aria-label={`Move hero photo ${index + 1} up`} disabled={index === 0 || busy} onClick={() => movePhoto("hero", index, -1)}>↑</button><button type="button" aria-label={`Move hero photo ${index + 1} down`} disabled={index === content.heroImages.length - 1 || busy} onClick={() => movePhoto("hero", index, 1)}>↓</button><button type="button" aria-label={`Delete hero photo ${index + 1}`} disabled={content.heroImages.length <= 1 || busy} onClick={() => removeVisualPhoto("hero", index)}>×</button></div></li>)}</ol>
+        </details>
+        <div className="visual-gallery-tools"><h3>Photo story gallery</h3><p>New photos are added to the end of the gallery.</p><label className="visual-add-photo">+ Add photo to gallery<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "gallery"); event.currentTarget.value = ""; }}/></label></div>
+      </aside>
+      <section className="visual-preview-pane" aria-label="Landing page preview">
+        <div className="visual-preview-toolbar"><strong>Landing page</strong><div role="group" aria-label="Preview size"><button type="button" aria-label="Desktop preview" aria-pressed={previewMode === "desktop"} className={previewMode === "desktop" ? "is-selected" : ""} onClick={() => setPreviewMode("desktop")}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8m-4-4v4"/></svg>Desktop</button><button type="button" aria-label="Mobile preview" aria-pressed={previewMode === "mobile"} className={previewMode === "mobile" ? "is-selected" : ""} onClick={() => setPreviewMode("mobile")}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Mobile</button></div></div>
+        <div className={`visual-frame-wrap visual-frame-${previewMode}`}><iframe ref={visualFrame} src="/?admin-preview=1&visual-edit=1" title="Visual homepage editor" onLoad={sendPreviewDraft}/></div>
+      </section>
+    </div>}
     <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>
-    </section>{previewOpen && <div className="admin-preview-backdrop" onClick={() => setPreviewOpen(false)}><aside className="admin-preview-drawer" role="dialog" aria-modal="true" aria-label="Homepage preview" onClick={(event) => event.stopPropagation()}><div className="admin-preview-toolbar"><div><b>Homepage preview</b><small>Changes update as you edit.</small></div><div className="admin-preview-controls"><button type="button" className={previewMode === "desktop" ? "is-selected" : ""} onClick={() => setPreviewMode("desktop")}>Desktop</button><button type="button" className={previewMode === "mobile" ? "is-selected" : ""} onClick={() => setPreviewMode("mobile")}>Mobile</button><button type="button" className="admin-preview-close" onClick={() => setPreviewOpen(false)} aria-label="Close preview">×</button></div></div><div className={`admin-preview-viewport admin-preview-${previewMode}`}><iframe ref={previewFrame} src="/?admin-preview=1" title="Live Weskos homepage preview" onLoad={sendPreviewDraft}/></div></aside></div>}</main>;
+    </section></main>;
 }

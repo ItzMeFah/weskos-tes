@@ -19,6 +19,7 @@ values (
     "heroVideo": "/images/krui-surf-intro.mp4",
     "heroVideoDurationSeconds": 4,
     "heroSlideIntervalSeconds": 10,
+    "heroPhraseIntervalSeconds": 4,
     "heroImages": [
       "/images/krui-bukit-barisan.webp",
       "/images/pulau-pisang-coast.webp",

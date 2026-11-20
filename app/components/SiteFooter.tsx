@@ -1,11 +1,11 @@
 import { DEFAULT_HOME_CONTENT, type HomeContent } from "@/lib/home-content";
+import { instagramUrl, whatsappUrl } from "@/lib/contact-links";
 
 const directions = "https://maps.app.goo.gl/4bhoLfCscugu52SW7?g_st=ipc";
 
 export default function SiteFooter({ contact = DEFAULT_HOME_CONTENT.contact, services = DEFAULT_HOME_CONTENT.services, copy = DEFAULT_HOME_CONTENT.copy }: Partial<Pick<HomeContent, "contact" | "services" | "copy">> = {}) {
-  const phone = contact.phone.replace(/\D/g, "");
-  const instagram = `https://instagram.com/${contact.instagram.replace(/^@/, "")}`;
-  const whatsapp = `https://wa.me/${phone}`;
+  const instagram = instagramUrl(contact.instagram);
+  const whatsapp = whatsappUrl(contact.phone);
   return <footer className="site-footer">
     <div className="site-footer-main">
       <div className="site-footer-brand"><a className="footer-logo" href="/#home" aria-label={`${copy.footerCopyrightName} home`}><img src="/images/weskos-logo.webp" alt={copy.footerCopyrightName} /></a><p data-cms-field="copy.footerBrandText">{copy.footerBrandText}</p><a className="site-footer-directions" href={directions} target="_blank" rel="noreferrer"><span data-cms-field="copy.footerVisitLabel">{copy.footerVisitLabel}</span> <span aria-hidden="true">↗</span></a></div>

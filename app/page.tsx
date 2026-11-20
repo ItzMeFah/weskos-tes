@@ -5,6 +5,7 @@ import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 import HomeHero from "@/app/components/HomeHero";
 import { supabase } from "@/lib/supabase";
+import { instagramUrl, whatsappUrl } from "@/lib/contact-links";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 const map = "https://maps.app.goo.gl/4bhoLfCscugu52SW7?g_st=ipc";
@@ -60,11 +61,9 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
 
 export default function Home() {
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
-  const phone = content.contact.phone.replace(/\D/g, "");
   const email = content.contact.email;
-  const instagramHandle = content.contact.instagram.replace(/^@/, "");
-  const whatsapp = `https://wa.me/${phone}?text=${encodeURIComponent("Hello Weskos Legal Co., I would like to ask about your legal services.")}`;
-  const instagram = `https://instagram.com/${instagramHandle}`;
+  const whatsapp = whatsappUrl(content.contact.phone, "Hello Weskos Legal Co., I would like to ask about your legal services.");
+  const instagram = instagramUrl(content.contact.instagram);
   const sectionPosition = (section: HomeContent["sectionOrder"][number]) => content.sectionOrder.indexOf(section);
   const photoStoryPhotos = [
     ...content.photos.gallery.map((src, imageIndex) => ({ src, area: "gallery" as const, imageIndex })),

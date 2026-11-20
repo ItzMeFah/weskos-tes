@@ -6,6 +6,7 @@ export type HomeContent = {
   heroVideo: string;
   heroVideoDurationSeconds: number;
   heroSlideIntervalSeconds: number;
+  heroPhraseIntervalSeconds: number;
   heroImages: string[];
   photos: {
     apparel: string;
@@ -91,6 +92,7 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroVideo: "/images/krui-surf-intro.mp4",
   heroVideoDurationSeconds: 4,
   heroSlideIntervalSeconds: 10,
+  heroPhraseIntervalSeconds: 4,
   heroImages: [...HERO_LANDSCAPE_IMAGES, ...HERO_SURF_IMAGES],
   photos: {
     apparel: "/images/weskos-local-team.webp",
@@ -177,6 +179,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     heroImages: configuredHeroImages,
     heroVideoDurationSeconds: seconds(value?.heroVideoDurationSeconds, DEFAULT_HOME_CONTENT.heroVideoDurationSeconds, 0, 30),
     heroSlideIntervalSeconds: seconds(value?.heroSlideIntervalSeconds, DEFAULT_HOME_CONTENT.heroSlideIntervalSeconds, 3, 120),
+    heroPhraseIntervalSeconds: seconds(value?.heroPhraseIntervalSeconds, DEFAULT_HOME_CONTENT.heroPhraseIntervalSeconds, 1, 60),
     photos: {
       ...DEFAULT_HOME_CONTENT.photos,
       ...value?.photos,

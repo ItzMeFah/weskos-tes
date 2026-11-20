@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HERO_OPENING_IMAGE_COUNT, HERO_SURF_IMAGES, type HomeContent } from "@/lib/home-content";
+import { HERO_OPENING_IMAGE_COUNT, type HomeContent } from "@/lib/home-content";
 
 const Arrow = () => <span aria-hidden="true">↓</span>;
 
@@ -17,21 +17,13 @@ export default function HomeHero({ content }: { content: HomeContent }) {
   }, []);
 
   const showHeroVideo = Boolean(content.heroVideo) && videoAvailable && !prefersReducedMotion;
-  const surfImages = useMemo(() => {
-    const surfSet = new Set(HERO_SURF_IMAGES);
-    return content.heroImages.map((src, imageIndex) => ({ src, imageIndex })).filter(({ src }) => surfSet.has(src));
-  }, [content.heroImages]);
-  const landscapeImages = useMemo(() => {
-    const surfSet = new Set(HERO_SURF_IMAGES);
-    return content.heroImages.map((src, imageIndex) => ({ src, imageIndex })).filter(({ src }) => !surfSet.has(src));
-  }, [content.heroImages]);
-  const openingImages = landscapeImages.slice(0, HERO_OPENING_IMAGE_COUNT);
-  const remainingLandscapes = landscapeImages.slice(HERO_OPENING_IMAGE_COUNT);
+  const orderedImages = useMemo(() => content.heroImages.map((src, imageIndex) => ({ src, imageIndex })), [content.heroImages]);
+  const openingImages = orderedImages.slice(0, HERO_OPENING_IMAGE_COUNT);
+  const remainingImages = orderedImages.slice(HERO_OPENING_IMAGE_COUNT);
   const heroSequence: ({ type: "image"; src: string; imageIndex: number } | { type: "video" })[] = [
     ...openingImages.map((item) => ({ type: "image" as const, ...item })),
     ...(showHeroVideo ? [{ type: "video" as const }] : []),
-    ...surfImages.map((item) => ({ type: "image" as const, ...item })),
-    ...remainingLandscapes.map((item) => ({ type: "image" as const, ...item })),
+    ...remainingImages.map((item) => ({ type: "image" as const, ...item })),
   ];
   const videoSlideIndex = openingImages.length;
   const nextHeroIndex = heroSequence.length ? (heroIndex + 1) % heroSequence.length : 0;
@@ -56,9 +48,9 @@ export default function HomeHero({ content }: { content: HomeContent }) {
   }, [content.heroImages, content.heroSlideIntervalSeconds, content.heroVideoDurationSeconds, showHeroVideo, videoSlideIndex]);
 
   useEffect(() => {
-    const phraseTimer = window.setInterval(() => setPhraseIndex((index) => (index + 1) % content.heroPhrases.length), 4000);
+    const phraseTimer = window.setInterval(() => setPhraseIndex((index) => (index + 1) % content.heroPhrases.length), content.heroPhraseIntervalSeconds * 1000);
     return () => window.clearInterval(phraseTimer);
-  }, [content.heroPhrases.length]);
+  }, [content.heroPhrases.length, content.heroPhraseIntervalSeconds]);
 
   useEffect(() => {
     const video = heroVideoRef.current;

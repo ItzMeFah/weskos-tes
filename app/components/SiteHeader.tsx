@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_HOME_CONTENT, type HomeContent } from "@/lib/home-content";
+import { instagramUrl, whatsappUrl } from "@/lib/contact-links";
 
 const serviceRoutes = ["/services/company-formation", "/services/business-permits", "/services/visa-immigration", "/services/property-due-diligence", "/services/property-acquisition", "/services/legal-consulting"];
 
@@ -15,8 +16,8 @@ function Icon({ name }: { name: "whatsapp" | "instagram" | "mail" | "moon" | "su
 
 export default function SiteHeader({ content = DEFAULT_HOME_CONTENT }: { content?: HomeContent }) {
   const [dark, setDark] = useState(false);
-  const whatsapp = `https://wa.me/${content.contact.phone.replace(/\D/g, "")}`;
-  const instagram = `https://instagram.com/${content.contact.instagram.replace(/^@/, "")}`;
+  const whatsapp = whatsappUrl(content.contact.phone);
+  const instagram = instagramUrl(content.contact.instagram);
   useEffect(() => {
     let saved: string | null = null;
     try { saved = localStorage.getItem("weskos-theme"); } catch { /* Theme still works for this session without storage. */ }
