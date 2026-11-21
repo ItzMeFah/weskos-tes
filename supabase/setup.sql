@@ -2,6 +2,22 @@
 -- Safe to run again: it only replaces an existing record when its content is still {}.
 begin;
 
+-- Store the admin's editable profile name in the allowlist table.
+-- Passwords stay in Supabase Auth and must never be stored in this table.
+alter table public.admin_users
+  add column if not exists username text not null default '';
+
+alter table public.admin_users enable row level security;
+grant select, update on public.admin_users to authenticated;
+
+drop policy if exists "Admins can update their own username" on public.admin_users;
+create policy "Admins can update their own username"
+  on public.admin_users
+  for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 insert into public.site_content as current_home (id, content, updated_at)
 values (
   'home',

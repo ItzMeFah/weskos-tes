@@ -65,6 +65,9 @@ export default function BackofficePanel() {
   const [status, setStatus] = useState<AdminStatus>("checking");
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const [message, setMessage] = useState("");
+  const [usernameMessage, setUsernameMessage] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [usernameColumnReady, setUsernameColumnReady] = useState(true);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -91,14 +94,18 @@ export default function BackofficePanel() {
 
   async function checkUser(userId: string | undefined) {
     if (!supabase || !userId) { setStatus("signed-out"); return; }
-    const { data, error } = await supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
-    if (error) { setMessage("Could not verify admin access. Run the Supabase setup SQL and add your user as an admin."); setStatus("not-admin"); return; }
-    if (!data) { setMessage("This account is signed in but is not on the Weskos admin list."); setStatus("not-admin"); return; }
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user?.id === userId) {
-      const metadata = authData.user.user_metadata ?? {};
-      setUsername(String(metadata.username ?? metadata.display_name ?? metadata.full_name ?? ""));
+    let { data, error } = await supabase.from("admin_users").select("user_id, username").eq("user_id", userId).maybeSingle();
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      setUsernameColumnReady(false);
+      const legacyResult = await supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
+      data = legacyResult.data as typeof data;
+      error = legacyResult.error;
+    } else if (!error) {
+      setUsernameColumnReady(true);
     }
+    if (error) { setMessage("Could not verify admin access. Check the Supabase setup SQL and admin allowlist."); setStatus("not-admin"); return; }
+    if (!data) { setMessage("This account is signed in but is not on the Weskos admin list."); setStatus("not-admin"); return; }
+    setUsername("username" in data ? data.username ?? "" : "");
     await loadContent();
   }
 
@@ -150,17 +157,21 @@ export default function BackofficePanel() {
 
   async function saveUsername(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (localPreview || !supabase) { setMessage("Sign in to Supabase to change the admin username."); return; }
+    if (localPreview || !supabase) { setUsernameMessage("Sign in to Supabase to change the admin username."); return; }
+    if (!usernameColumnReady) { setUsernameMessage("Run the updated supabase/setup.sql in Supabase SQL Editor first, then reload this page."); return; }
     const nextUsername = username.trim();
-    if (!nextUsername) { setMessage("Enter a username before saving."); return; }
-    setBusy(true); setMessage("");
+    if (!nextUsername) { setUsernameMessage("Enter a username before saving."); return; }
+    setBusy(true); setUsernameMessage("");
     try {
-      const { error } = await supabase.auth.updateUser({ data: { username: nextUsername } });
-      if (error) { setMessage(`Could not change username: ${error.message}`); return; }
+      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !sessionData.session) throw new Error("Your Supabase session expired. Sign in again, then retry.");
+      const { data, error } = await supabase.from("admin_users").update({ username: nextUsername }).eq("user_id", sessionData.session.user.id).select("user_id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("No matching admin row was updated. Check the admin_users update policy.");
       setUsername(nextUsername);
-      setMessage("Admin username updated.");
+      setUsernameMessage("Admin username saved.");
     } catch (error) {
-      setMessage(error instanceof Error ? `Could not change username: ${error.message}` : "Could not change the username. Check your connection and try again.");
+      setUsernameMessage(error instanceof Error ? `Could not change username: ${error.message}` : "Could not change the username. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -169,30 +180,31 @@ export default function BackofficePanel() {
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (localPreview || !supabase) {
-      setMessage("Sign in to Supabase to change the admin password.");
+      setPasswordMessage("Sign in to Supabase to change the admin password.");
       return;
     }
     if (newPassword.length < 8) {
-      setMessage("Use at least 8 characters for the new password.");
+      setPasswordMessage("Use at least 8 characters for the new password.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setMessage("The new passwords do not match.");
+      setPasswordMessage("The new passwords do not match.");
       return;
     }
     setBusy(true);
-    setMessage("");
+    setPasswordMessage("");
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !sessionData.session) throw new Error("Your Supabase session expired. Sign in again, then retry.");
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        setMessage(`Could not change password: ${error.message}`);
-        return;
+        throw error;
       }
       setNewPassword("");
       setConfirmPassword("");
-      setMessage("Password changed. Use the new password next time you sign in.");
+      setPasswordMessage("Password changed. Use the new password next time you sign in.");
     } catch (error) {
-      setMessage(error instanceof Error ? `Could not change password: ${error.message}` : "Could not change the password. Check your connection and try again.");
+      setPasswordMessage(error instanceof Error ? `Could not change password: ${error.message}` : "Could not change the password. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -366,16 +378,15 @@ export default function BackofficePanel() {
       <div className="admin-subsection"><h3>Feature banner</h3><label>Eyebrow<input value={content.manifesto.eyebrow} onChange={(event) => updateManifesto("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.manifesto.title} onChange={(event) => updateManifesto("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.manifesto.body} onChange={(event) => updateManifesto("body", event.target.value)}/></label><label>Button text<input value={content.manifesto.buttonText} onChange={(event) => updateManifesto("buttonText", event.target.value)}/></label></div>
       <div className="admin-subsection"><h3>Contact section</h3><label>Eyebrow<input value={content.contact.eyebrow} onChange={(event) => updateContact("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.contact.title} onChange={(event) => updateContact("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.contact.body} onChange={(event) => updateContact("body", event.target.value)}/></label><label>Button text<input value={content.contact.buttonText} onChange={(event) => updateContact("buttonText", event.target.value)}/></label></div>
     </div>}
-    {activeTab === "account" && <div className="admin-editor"><div className="editor-title"><span>07</span><div><h2>Account settings</h2><p>Update the admin profile name or the password used to sign in.</p></div></div>
+    {activeTab === "account" && <div className="admin-editor"><div className="editor-title"><div><h2>Profile and sign-in</h2><p>Update the admin username or change the password used to sign in.</p></div></div>
       <div className="admin-account-settings">
         <section className="admin-subsection"><h3>Admin username</h3>
-          {localPreview ? <p className="admin-account-note">Username changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-username-form" onSubmit={(event) => void saveUsername(event)}><label>Username<input autoComplete="nickname" maxLength={40} required value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Admin username"/></label><p className="admin-account-note">This is the profile name. You will still sign in with your email address.</p><button className="admin-button" type="submit" disabled={busy}>{busy ? "Saving…" : "Save username"}</button></form>}
+          {localPreview ? <p className="admin-account-note">Username changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-username-form" onSubmit={(event) => void saveUsername(event)}><label>Username<input autoComplete="nickname" maxLength={40} required value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Admin username"/></label><p className="admin-account-note">Username is saved in the <code>admin_users</code> table. Sign in with your email.</p>{!usernameColumnReady && <p className="admin-message" role="status">Run the updated <code>supabase/setup.sql</code> in Supabase SQL Editor to enable username editing.</p>}<button className="admin-button" type="submit" disabled={busy || !usernameColumnReady}>{busy ? "Saving username…" : "Save username"}</button>{usernameMessage && <p className="admin-message" role="status">{usernameMessage}</p>}</form>}
         </section>
         <section className="admin-subsection"><h3>Change password</h3>
-          {localPreview ? <p className="admin-account-note">Password changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-password-form" onSubmit={(event) => void changePassword(event)}><PasswordInput label="New password" autoComplete="new-password" minLength={8} value={newPassword} onChange={setNewPassword}/><PasswordInput label="Confirm new password" autoComplete="new-password" minLength={8} value={confirmPassword} onChange={setConfirmPassword}/><button className="admin-button" type="submit" disabled={busy}>{busy ? "Changing password…" : "Change password"}</button></form>}
+          {localPreview ? <p className="admin-account-note">Password changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-password-form" onSubmit={(event) => void changePassword(event)}><PasswordInput label="New password" autoComplete="new-password" minLength={8} value={newPassword} onChange={setNewPassword}/><PasswordInput label="Confirm new password" autoComplete="new-password" minLength={8} value={confirmPassword} onChange={setConfirmPassword}/><p className="admin-account-note">Password is changed securely through Supabase Auth; it is never written to a normal table.</p><button className="admin-button" type="submit" disabled={busy}>{busy ? "Changing password…" : "Change password"}</button>{passwordMessage && <p className="admin-message" role="status">{passwordMessage}</p>}</form>}
         </section>
       </div>
-      {message && <p className="admin-message" role="status">{message}</p>}
     </div>}
     </div>}
     {editorMode === "visual" && <div className="visual-editor-shell">
