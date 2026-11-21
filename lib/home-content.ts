@@ -3,8 +3,6 @@ export type HomeContent = {
   heroTitle: string;
   heroPhrases: string[];
   heroLead: string;
-  heroVideo: string;
-  heroVideoDurationSeconds: number;
   heroSlideIntervalSeconds: number;
   heroPhraseIntervalSeconds: number;
   heroImages: string[];
@@ -76,8 +74,6 @@ export const HERO_SURF_IMAGES = [
   "/images/air-surf-session.webp",
 ];
 
-export const HERO_OPENING_IMAGE_COUNT = 4;
-
 function useOptimizedLocalImage(src: string): string {
   return src.startsWith("/images/")
     ? src.replace(/\.(?:jpe?g|png)$/i, ".webp")
@@ -89,8 +85,6 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
   heroTitle: "Make your next move.",
   heroPhrases: ["Start your business with clarity.", "Know the land before you sign.", "Handle permits with local guidance.", "Plan your stay in Indonesia."],
   heroLead: "From company setup and permits to property and visa matters, get practical legal guidance rooted in Krui.",
-  heroVideo: "/images/krui-surf-intro.mp4",
-  heroVideoDurationSeconds: 4,
   heroSlideIntervalSeconds: 10,
   heroPhraseIntervalSeconds: 4,
   heroImages: [...HERO_LANDSCAPE_IMAGES, ...HERO_SURF_IMAGES],
@@ -149,6 +143,9 @@ export const DEFAULT_HOME_CONTENT: HomeContent = {
 };
 
 export function normalizeHomeContent(value: Partial<HomeContent> | null | undefined): HomeContent {
+  const contentWithoutLegacyVideo = { ...value };
+  delete (contentWithoutLegacyVideo as Record<string, unknown>).heroVideo;
+  delete (contentWithoutLegacyVideo as Record<string, unknown>).heroVideoDurationSeconds;
   const validSections: HomeContent["sectionOrder"] = ["intro", "services", "photoStory", "manifesto", "contact"];
   const requestedSections = Array.isArray(value?.sectionOrder)
     ? [...new Set(value.sectionOrder.filter((section): section is HomeContent["sectionOrder"][number] => validSections.includes(section as HomeContent["sectionOrder"][number])))]
@@ -162,7 +159,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     : DEFAULT_HOME_CONTENT.heroImages;
   return {
     ...DEFAULT_HOME_CONTENT,
-    ...value,
+    ...contentWithoutLegacyVideo,
     sectionOrder: [...requestedSections, ...validSections.filter((section) => !requestedSections.includes(section))],
     // Move the original surf-first defaults forward while preserving any copy
     // the Weskos team has already customized in Supabase.
@@ -177,7 +174,6 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
       ["Set up your PT PMA with clarity.", "Make your business legal in Indonesia.", "Explore property with local guidance.", "Extend your stay with confidence."],
     ].some((legacy) => value.heroPhrases!.length === legacy.length && value.heroPhrases!.every((phrase, index) => phrase === legacy[index])) ? value.heroPhrases : DEFAULT_HOME_CONTENT.heroPhrases,
     heroImages: configuredHeroImages,
-    heroVideoDurationSeconds: seconds(value?.heroVideoDurationSeconds, DEFAULT_HOME_CONTENT.heroVideoDurationSeconds, 0, 30),
     heroSlideIntervalSeconds: seconds(value?.heroSlideIntervalSeconds, DEFAULT_HOME_CONTENT.heroSlideIntervalSeconds, 3, 120),
     heroPhraseIntervalSeconds: seconds(value?.heroPhraseIntervalSeconds, DEFAULT_HOME_CONTENT.heroPhraseIntervalSeconds, 1, 60),
     photos: {

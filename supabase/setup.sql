@@ -16,8 +16,6 @@ values (
       "Plan your stay in Indonesia."
     ],
     "heroLead": "From company setup and permits to property and visa matters, get practical legal guidance rooted in Krui.",
-    "heroVideo": "/images/krui-surf-intro.mp4",
-    "heroVideoDurationSeconds": 4,
     "heroSlideIntervalSeconds": 10,
     "heroPhraseIntervalSeconds": 4,
     "heroImages": [

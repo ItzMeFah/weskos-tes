@@ -54,7 +54,7 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
   };
 
   return <div className="visual-image-actions" style={{ top: image.top, left: image.left }}>
-    <label className="visual-image-action" aria-label="Replace photo" title="Replace photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><input type="file" accept="image/jpeg,image/png,image/webp" onChange={replaceImage}/></label>
+    <label className="visual-image-action" aria-label="Replace photo" title="Replace photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><input type="file" accept="image/*" onChange={replaceImage}/></label>
     <button className="visual-image-action visual-image-delete" type="button" aria-label="Delete photo" title={cannotDelete ? "Keep at least one hero photo" : "Delete photo"} disabled={cannotDelete} onClick={deleteImage}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
   </div>;
 }
