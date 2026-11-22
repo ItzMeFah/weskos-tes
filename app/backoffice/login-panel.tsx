@@ -20,34 +20,41 @@ export default function BackofficeLoginPanel() {
     setBusy(true);
     setErrorMessage("");
     try {
-      if (loginName.includes("@") && supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: loginName, password });
-        if (!error && data.user) {
-          const { data: dev, error: devError } = await supabase.from("admin_users").select("user_id").eq("user_id", data.user.id).maybeSingle();
-          if (!devError && dev) {
-            if (data.session?.access_token) {
-              await fetch("/api/backoffice/auth/logout", { method: "POST", credentials: "include" });
-              await fetch("/api/backoffice/dev/logs", { method: "POST", headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "dev_login" }) });
-            }
-            showBackofficeToast("Dev sign-in successful.", "success");
-            router.replace("/backoffice/dev");
-            return;
-          }
-          if (devError) throw new Error("Could not check Dev access. Check the Supabase admin_users table.");
-          await supabase.auth.signOut();
-        }
-      }
-
-      const response = await fetch("/api/backoffice/auth/login", {
+      const officeResponse = await fetch("/api/backoffice/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ username: loginName, password }),
       });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error || "Username/email or password is incorrect.");
-      showBackofficeToast("Office sign-in successful.", "success");
-      router.replace("/backoffice/homepage");
+      const officeResult = await officeResponse.json() as { error?: string };
+      if (officeResponse.ok) {
+        await supabase?.auth.signOut();
+        showBackofficeToast("Office sign-in successful.", "success");
+        router.replace("/backoffice/homepage");
+        return;
+      }
+
+      if (officeResponse.status === 404 && loginName.includes("@") && supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: loginName, password });
+        if (error || !data.user) throw new Error(error?.message || "Dev sign-in failed. Check the Supabase email and password.");
+        const { data: dev, error: devError } = await supabase.from("admin_users").select("user_id").eq("user_id", data.user.id).maybeSingle();
+        if (devError) {
+          await supabase.auth.signOut();
+          throw new Error("Could not check Dev access. Check the Supabase admin_users table.");
+        }
+        if (!dev) {
+          await supabase.auth.signOut();
+          throw new Error("This Supabase account is not allowlisted as Dev.");
+        }
+        if (data.session?.access_token) {
+          await fetch("/api/backoffice/auth/logout", { method: "POST", credentials: "include" });
+          await fetch("/api/backoffice/dev/logs", { method: "POST", headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "dev_login" }) });
+        }
+        showBackofficeToast("Dev sign-in successful.", "success");
+        router.replace("/backoffice/dev");
+        return;
+      }
+      throw new Error(officeResult.error || "Username/email or password is incorrect.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Sign-in failed. Check the username and password.";
       setErrorMessage(message);

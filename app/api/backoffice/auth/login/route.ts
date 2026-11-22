@@ -14,7 +14,8 @@ export async function POST(request: Request) {
     const db = getBackofficeDb();
     const { data: user, error } = await db.from("backoffice_staff").select("id, username, password_hash, is_active").ilike("username", username).maybeSingle();
     if (error) return jsonError("Could not check the office account. Run the backoffice setup SQL.", 503);
-    if (!user || !user.is_active || !verifyPassword(password, user.password_hash)) return jsonError("Username or password is incorrect.", 401);
+    if (!user) return jsonError("No office account was found.", 404);
+    if (!user.is_active || !verifyPassword(password, user.password_hash)) return jsonError("Username/email or password is incorrect.", 401);
     const actor = { role: "office" as const, id: user.id as string, username: user.username as string };
     const { error: updateError } = await db.from("backoffice_staff").update({ last_login_at: new Date().toISOString() }).eq("id", user.id);
     if (updateError) return jsonError("Sign-in succeeded but the login timestamp could not be recorded. Try again.", 503);
