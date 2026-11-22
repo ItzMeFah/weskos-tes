@@ -1,4 +1,5 @@
 import { addAudit, createOfficeSession, getBackofficeDb, jsonError, OFFICE_SESSION_COOKIE, verifyPassword } from "@/lib/backoffice-server";
+import { isValidOfficeLoginName } from "@/lib/backoffice-validation";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
     const password = body.password ?? "";
     if (!username || !password) return jsonError("Enter your username and password.", 400);
     if (password.length > 256) return jsonError("Username or password is incorrect.", 401);
-    if (!/^[A-Za-z0-9._-]{3,40}$/.test(username)) return jsonError("Username or password is incorrect.", 401);
+    if (!isValidOfficeLoginName(username)) return jsonError("Username/email or password is incorrect.", 401);
     const db = getBackofficeDb();
     const { data: user, error } = await db.from("backoffice_staff").select("id, username, password_hash, is_active").ilike("username", username).maybeSingle();
     if (error) return jsonError("Could not check the office account. Run the backoffice setup SQL.", 503);

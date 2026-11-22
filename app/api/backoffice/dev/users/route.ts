@@ -1,4 +1,5 @@
 import { addAudit, getBackofficeDb, jsonError, requireDev, hashPassword } from "@/lib/backoffice-server";
+import { isValidOfficeLoginName } from "@/lib/backoffice-validation";
 
 export async function GET(request: Request) {
   const actor = await requireDev(request);
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { username?: string; password?: string };
     const username = body.username?.trim();
-    if (!username || !/^[A-Za-z0-9._-]{3,40}$/.test(username)) return jsonError("Username must be 3–40 characters and use letters, numbers, dots, underscores, or hyphens.");
+    if (!username || !isValidOfficeLoginName(username)) return jsonError("Enter a username (3–40 letters, numbers, dots, underscores, or hyphens) or a valid email address.");
     if (!body.password || body.password.length < 10 || body.password.length > 256) return jsonError("Use a password with 10–256 characters.");
     const { data, error } = await getBackofficeDb().from("backoffice_staff").insert({ username, password_hash: hashPassword(body.password) }).select("id, username, is_active, last_login_at, created_at, updated_at").single();
     if (error) return jsonError(`Could not create user: ${error.message}`, 400);

@@ -1,4 +1,5 @@
 import { addAudit, getActor, getBackofficeDb, hashPassword, jsonError, verifyPassword } from "@/lib/backoffice-server";
+import { isValidOfficeLoginName } from "@/lib/backoffice-validation";
 
 export async function GET(request: Request) {
   const actor = await getActor(request);
@@ -16,7 +17,7 @@ export async function PATCH(request: Request) {
     const db = getBackofficeDb();
     if (typeof body.username === "string") {
       const username = body.username.trim();
-      if (!/^[A-Za-z0-9._-]{3,40}$/.test(username)) return jsonError("Username must be 3–40 characters and use letters, numbers, dots, underscores, or hyphens.");
+      if (!isValidOfficeLoginName(username)) return jsonError("Enter a username (3–40 letters, numbers, dots, underscores, or hyphens) or a valid email address.");
       const { error } = await db.from("backoffice_staff").update({ username, updated_at: new Date().toISOString() }).eq("id", actor.id);
       if (error) return jsonError(`Could not save username: ${error.message}`, 400);
       await addAudit({ ...actor, username }, "office_username_changed");
