@@ -26,8 +26,8 @@ Buka http://localhost:3000.
 ## Menyiapkan Supabase
 
 1. Buat project Supabase.
-2. Salin `.env.example` sebagai `.env.local` dan isi URL serta anon key dari Project Settings → API.
-3. Tambahkan `SUPABASE_SERVICE_ROLE_KEY` dan `BACKOFFICE_SESSION_SECRET` ke environment server lokal dan Vercel. Service role key harus server-only dan tidak boleh memakai prefix `NEXT_PUBLIC_`; buat session secret acak minimal 32 karakter.
+2. Salin `.env.example` sebagai `.env.local` dan isi URL, publishable key, serta server secret key dari Supabase API Keys. Kode juga masih menerima key `anon` lama.
+3. Tambahkan `SUPABASE_SECRET_KEY` dan `BACKOFFICE_SESSION_SECRET` ke environment server lokal dan Vercel. Secret key harus server-only dan tidak boleh memakai prefix `NEXT_PUBLIC_`; buat session secret acak minimal 32 karakter. `SUPABASE_SERVICE_ROLE_KEY` lama tetap diterima sebagai fallback.
 4. Jalankan `supabase/setup.sql` melalui SQL Editor.
 5. Di Supabase Authentication → Sign In / Providers, aktifkan Email provider untuk akun Dev. Tambahkan UUID Dev ke `public.admin_users`; hanya Dev yang ada di allowlist ini yang bisa membuka panel Dev.
 6. Dev masuk lewat `/backoffice`, lalu membuat username dan password admin kantor di Dev control panel. Admin kantor masuk lewat halaman login yang sama dengan username dan password tersebut.
@@ -36,6 +36,6 @@ Buka http://localhost:3000.
 
 Nama dan aktivitas Dev tersimpan di `public.admin_users` dan `public.backoffice_audit`. Username, hash password, status aktif, dan waktu login admin kantor tersimpan di `public.backoffice_staff`; audit tidak menyimpan password polos.
 
-Service role key jangan dimasukkan ke variabel `NEXT_PUBLIC_*` atau kode browser. RLS admin allowlist melindungi CMS homepage dan Storage; katalog produk saat ini baru disiapkan untuk pembacaan produk yang dipublikasikan.
+Secret key jangan dimasukkan ke variabel `NEXT_PUBLIC_*` atau kode browser. RLS admin allowlist melindungi CMS homepage dan Storage; katalog produk saat ini baru disiapkan untuk pembacaan produk yang dipublikasikan.
 
 Backoffice memiliki satu pintu login: Supabase Auth untuk Dev dan akun `backoffice_staff` untuk admin kantor. Password admin kantor disimpan sebagai hash scrypt dan hanya bisa direset, bukan dibaca kembali. Jangan simpan password polos di tabel atau audit log. Tidak ada pendaftaran publik.
