@@ -2,7 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { convertImageToWebP } from "@/lib/image-conversion";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Keep the already-configured legacy key first when it exists; use the new key on newer projects.
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 export const supabase = url && publishableKey ? createClient(url, publishableKey) : null;
 
 /** Upload an image to the public `weskos-media` bucket and return its URL. */

@@ -26,7 +26,7 @@ Buka http://localhost:3000.
 ## Menyiapkan Supabase
 
 1. Buat project Supabase.
-2. Salin `.env.example` sebagai `.env.local` dan isi URL, publishable key, serta server secret key dari Supabase API Keys. Kode juga masih menerima key `anon` lama.
+2. Salin `.env.example` sebagai `.env.local` dan isi URL, publishable key, serta server secret key dari Supabase API Keys. Key `anon` lama tetap didahulukan bila masih dikonfigurasi, sebagai kompatibilitas untuk setup yang sudah berjalan.
 3. Tambahkan `SUPABASE_SECRET_KEY` dan `BACKOFFICE_SESSION_SECRET` ke environment server lokal dan Vercel. Secret key harus server-only dan tidak boleh memakai prefix `NEXT_PUBLIC_`; buat session secret acak minimal 32 karakter. `SUPABASE_SERVICE_ROLE_KEY` lama tetap diterima sebagai fallback.
 4. Jalankan `supabase/setup.sql` melalui SQL Editor.
 5. Di Supabase Authentication → Sign In / Providers, aktifkan Email provider untuk akun Dev. Tambahkan UUID Dev ke `public.admin_users`; hanya Dev yang ada di allowlist ini yang bisa membuka panel Dev.
