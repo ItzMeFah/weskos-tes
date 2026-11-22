@@ -16,9 +16,14 @@ export function getBackofficeDb() {
 }
 
 function sessionSecret() {
-  const secret = process.env.BACKOFFICE_SESSION_SECRET;
-  if (!secret || secret.length < 32) throw new Error("BACKOFFICE_SESSION_SECRET must be set to a random value of at least 32 characters.");
-  return secret;
+  const configuredSecret = process.env.BACKOFFICE_SESSION_SECRET;
+  if (configuredSecret) {
+    if (configuredSecret.length < 32) throw new Error("BACKOFFICE_SESSION_SECRET must be at least 32 characters.");
+    return configuredSecret;
+  }
+  const serverKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serverKey) throw new Error("Set SUPABASE_SECRET_KEY to enable office sessions.");
+  return createHmac("sha256", serverKey).update("weskos-office-session-signing-key-v1").digest("hex");
 }
 
 function sign(payload: string) {
