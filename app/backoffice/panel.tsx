@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { supabase, uploadMedia } from "@/lib/supabase";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { showBackofficeToast } from "@/lib/backoffice-toast";
 import { convertImageToWebP } from "@/lib/image-conversion";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 type AdminStatus = "checking" | "not-configured" | "signed-out" | "admin" | "not-admin";
-type EditorTab = "hero" | "photos" | "copy" | "story" | "services" | "contact" | "account";
+type EditorTab = "hero" | "photos" | "copy" | "story" | "services" | "contact";
 type CopyTextKey = Exclude<keyof HomeContent["copy"], "manifestoStamp">;
 type PhotoArea = "hero" | "gallery" | "coastAndLocation" | "apparel" | "surfGoods" | "manifesto" | "storefront" | "boardArtwork";
 type HomeSection = HomeContent["sectionOrder"][number];
@@ -50,7 +52,7 @@ function PhotoRow({ src, label, index, count, busy, onUrl, onMove, onRemove, onF
 }) {
   return <div className="media-row">
     <div className="media-row-preview">{src ? <img src={src} alt={label}/> : <span>No photo</span>}</div>
-    <div className="media-row-fields"><b>{label} · {String(index + 1).padStart(2, "0")}</b><input aria-label={`${label} image URL`} value={src} onChange={(event) => onUrl(event.target.value)} placeholder="Paste a photo URL"/><div className="media-row-actions"><label className="media-file-button">Replace photo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { onFile(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label><button type="button" onClick={() => onMove(-1)} disabled={busy || index === 0} aria-label="Move photo left">←</button><button type="button" onClick={() => onMove(1)} disabled={busy || index >= count - 1} aria-label="Move photo right">→</button><button type="button" className="media-remove" onClick={onRemove} disabled={busy || !allowRemove}>Remove</button></div></div>
+    <div className="media-row-fields"><b>{label} · {String(index + 1).padStart(2, "0")}</b><input aria-label={`${label} image URL`} value={src} onChange={(event) => onUrl(event.target.value)} placeholder="Paste a photo URL"/><div className="media-row-actions"><label className="media-file-button">Replace photo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { onFile(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label><button type="button" onClick={() => onMove(-1)} disabled={busy || index === 0} aria-label="Move photo left">←</button><button type="button" onClick={() => onMove(1)} disabled={busy || index >= count - 1} aria-label="Move photo right">→</button><button type="button" className="media-remove" onClick={() => { onRemove(); showBackofficeToast("Photo removed from the homepage draft. Save homepage to publish it.", "info"); }} disabled={busy || !allowRemove}>Remove</button></div></div>
   </div>;
 }
 
@@ -62,50 +64,44 @@ function PasswordInput({ label, value, autoComplete, onChange, required = true, 
 }
 
 export default function BackofficePanel() {
+  const router = useRouter();
   const [status, setStatus] = useState<AdminStatus>("checking");
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const [message, setMessage] = useState("");
-  const [usernameMessage, setUsernameMessage] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [usernameColumnReady, setUsernameColumnReady] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
   const [editorMode, setEditorMode] = useState<"manual" | "visual">("manual");
   const [draggedSection, setDraggedSection] = useState<HomeSection | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [activeTab, setActiveTab] = useState<EditorTab>("hero");
   const [localPreview, setLocalPreview] = useState(false);
+  const [officeSession, setOfficeSession] = useState(false);
   const visualFrame = useRef<HTMLIFrameElement>(null);
+  const devToken = useRef<string | null>(null);
+  const draftToastShown = useRef(false);
+  const suppressDraftToast = useRef(false);
+
+  function notifyDraftEdit() {
+    if (draftToastShown.current || suppressDraftToast.current) return;
+    draftToastShown.current = true;
+    showBackofficeToast("Changes added to the homepage draft. Save homepage to publish them.", "info");
+  }
 
   async function loadContent() {
-    if (!supabase) { setStatus("not-configured"); return; }
-    const { data, error } = await supabase.from("site_content").select("content").eq("id", HOME_CONTENT_KEY).maybeSingle();
-    if (error) { setMessage("Could not load homepage content. Check the Supabase table and access policies."); setStatus("not-admin"); return; }
-    const normalized = normalizeHomeContent(data?.content);
+    const response = await authorizedFetch("/api/backoffice/content");
+    const result = await response.json() as { content?: Partial<HomeContent>; error?: string };
+    if (!response.ok) { setMessage(result.error || "Could not load homepage content."); setStatus("not-admin"); showBackofficeToast(result.error || "Could not load homepage content.", "error"); return; }
+    const normalized = normalizeHomeContent(result.content);
     setContent(normalized);
     setSavedSnapshot(JSON.stringify(normalized));
     setStatus("admin");
   }
 
   async function checkUser(userId: string | undefined) {
-    if (!supabase || !userId) { setStatus("signed-out"); return; }
-    let { data, error } = await supabase.from("admin_users").select("user_id, username").eq("user_id", userId).maybeSingle();
-    if (error && (error.code === "42703" || error.code === "PGRST204")) {
-      setUsernameColumnReady(false);
-      const legacyResult = await supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
-      data = legacyResult.data as typeof data;
-      error = legacyResult.error;
-    } else if (!error) {
-      setUsernameColumnReady(true);
-    }
-    if (error) { setMessage("Could not verify admin access. Check the Supabase setup SQL and admin allowlist."); setStatus("not-admin"); return; }
-    if (!data) { setMessage("This account is signed in but is not on the Weskos admin list."); setStatus("not-admin"); return; }
-    setUsername("username" in data ? data.username ?? "" : "");
+    if (!supabase || !userId) { setStatus("signed-out"); router.replace("/backoffice"); return; }
+    const { data, error } = await supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
+    if (error) { setMessage("Could not verify Dev access. Check the Supabase setup SQL and admin allowlist."); setStatus("not-admin"); router.replace("/backoffice"); return; }
+    if (!data) { setMessage("This account is signed in but is not on the Weskos Dev list."); setStatus("not-admin"); router.replace("/backoffice"); return; }
     await loadContent();
   }
 
@@ -125,89 +121,47 @@ export default function BackofficePanel() {
       setStatus("admin");
       return;
     }
-    if (!supabase) { setStatus("not-configured"); return; }
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (error) { setMessage("Could not connect to Supabase Auth. Check the project URL and anon key."); setStatus("signed-out"); return; }
-      return checkUser(data.session?.user.id);
-    }).catch(() => { setMessage("Could not connect to Supabase Auth. Check the project URL and anon key."); setStatus("signed-out"); });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { void checkUser(session?.user.id); });
-    return () => listener.subscription.unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+    let active = true;
+    const authenticate = async () => {
+      try {
+        const officeResponse = await fetch("/api/backoffice/auth/session", { credentials: "include" });
+        if (officeResponse.ok) {
+          if (!active) return;
+          setOfficeSession(true);
+          setStatus("admin");
+          await loadContent();
+          return;
+        }
+        if (!supabase) { setStatus("not-configured"); router.replace("/backoffice"); return; }
+        const { data, error } = await supabase.auth.getSession();
+        if (error) { setMessage("Could not connect to Supabase Auth. Check the project URL and anon key."); setStatus("signed-out"); router.replace("/backoffice"); return; }
+        devToken.current = data.session?.access_token ?? null;
+        if (data.session?.user.id) await checkUser(data.session.user.id);
+        else { setStatus("signed-out"); router.replace("/backoffice"); }
+        const result = supabase.auth.onAuthStateChange((_event, session) => { devToken.current = session?.access_token ?? null; void checkUser(session?.user.id); });
+        unsubscribe = () => result.data.subscription.unsubscribe();
+      } catch {
+        setMessage("Could not connect to the backoffice. Check the server configuration.");
+        setStatus("signed-out");
+      }
+    };
+    void authenticate();
+    return () => { active = false; unsubscribe?.(); };
   }, []);
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!supabase) { setStatus("not-configured"); return; }
-    setBusy(true); setMessage("");
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) setMessage(`Sign-in failed: ${error.message}`);
-    } catch (error) {
-      setMessage(error instanceof Error ? `Sign-in failed: ${error.message}` : "Sign-in failed. Check your Supabase Auth settings.");
-    } finally {
-      setBusy(false);
-    }
+  async function authorizedFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+    const headers = new Headers(init.headers);
+    if (devToken.current) headers.set("Authorization", `Bearer ${devToken.current}`);
+    return fetch(input, { ...init, headers, credentials: "include" });
   }
 
   async function signOut() {
-    await supabase?.auth.signOut();
+    if (officeSession) await fetch("/api/backoffice/auth/logout", { method: "POST", credentials: "include" });
+    else await supabase?.auth.signOut();
     setStatus("signed-out"); setContent(DEFAULT_HOME_CONTENT);
-    setUsername("");
     setSavedSnapshot(JSON.stringify(DEFAULT_HOME_CONTENT));
-  }
-
-  async function saveUsername(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (localPreview || !supabase) { setUsernameMessage("Sign in to Supabase to change the admin username."); return; }
-    if (!usernameColumnReady) { setUsernameMessage("Run the updated supabase/setup.sql in Supabase SQL Editor first, then reload this page."); return; }
-    const nextUsername = username.trim();
-    if (!nextUsername) { setUsernameMessage("Enter a username before saving."); return; }
-    setBusy(true); setUsernameMessage("");
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
-      if (sessionError || !sessionData.session) throw new Error("Your Supabase session expired. Sign in again, then retry.");
-      const { data, error } = await supabase.from("admin_users").update({ username: nextUsername }).eq("user_id", sessionData.session.user.id).select("user_id").maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("No matching admin row was updated. Check the admin_users update policy.");
-      setUsername(nextUsername);
-      setUsernameMessage("Admin username saved.");
-    } catch (error) {
-      setUsernameMessage(error instanceof Error ? `Could not change username: ${error.message}` : "Could not change the username. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function changePassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (localPreview || !supabase) {
-      setPasswordMessage("Sign in to Supabase to change the admin password.");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setPasswordMessage("Use at least 8 characters for the new password.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage("The new passwords do not match.");
-      return;
-    }
-    setBusy(true);
-    setPasswordMessage("");
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
-      if (sessionError || !sessionData.session) throw new Error("Your Supabase session expired. Sign in again, then retry.");
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        throw error;
-      }
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordMessage("Password changed. Use the new password next time you sign in.");
-    } catch (error) {
-      setPasswordMessage(error instanceof Error ? `Could not change password: ${error.message}` : "Could not change the password. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
+    router.replace("/backoffice");
   }
 
   async function saveContent() {
@@ -218,19 +172,31 @@ export default function BackofficePanel() {
         window.localStorage.setItem(LOCAL_PREVIEW_KEY, snapshot);
         setSavedSnapshot(snapshot);
         setMessage("Saved in this browser only. Supabase was not changed.");
+        draftToastShown.current = false;
+        showBackofficeToast("Homepage saved in this browser preview.", "success");
       } catch {
         setMessage("Could not save this local preview in browser storage.");
+        showBackofficeToast("Could not save this local preview.", "error");
       }
       setBusy(false);
       return;
     }
-    if (status === "admin" && supabase) {
+    try {
+      const response = await authorizedFetch("/api/backoffice/content", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Could not save homepage.");
       const snapshot = JSON.stringify(content);
-      const { error } = await supabase.from("site_content").upsert({ id: HOME_CONTENT_KEY, content, updated_at: new Date().toISOString() });
-      setMessage(error ? `Could not save: ${error.message}` : "Homepage saved.");
-      if (!error) setSavedSnapshot(snapshot);
+      setSavedSnapshot(snapshot);
+      setMessage("Homepage saved.");
+      draftToastShown.current = false;
+      showBackofficeToast("Homepage saved successfully.", "success");
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : "Could not save homepage. Check the connection and try again.";
+      setMessage(`Could not save: ${errorText}`);
+      showBackofficeToast(`Save failed: ${errorText}`, "error");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function uploadPhoto(file: File | undefined, area: PhotoArea, index?: number) {
@@ -241,8 +207,15 @@ export default function BackofficePanel() {
       if (localPreview) photoUrl = await localImageUrl(file);
       else {
         if (status !== "admin") throw new Error("Sign in with an approved Weskos admin account to upload media.");
-        photoUrl = await uploadMedia(file, "home");
+        const webp = await convertImageToWebP(file);
+        const form = new FormData();
+        form.append("file", webp);
+        const response = await authorizedFetch("/api/backoffice/media", { method: "POST", body: form });
+        const result = await response.json() as { url?: string; error?: string };
+        if (!response.ok || !result.url) throw new Error(result.error || "Photo upload failed.");
+        photoUrl = result.url;
       }
+      suppressDraftToast.current = true;
       if (area === "hero") update("heroImages", index === undefined ? [...content.heroImages, photoUrl] : content.heroImages.map((photo, i) => i === index ? photoUrl : photo));
       else if (area === "gallery") updatePhoto("gallery", index === undefined ? [...content.photos.gallery, photoUrl] : content.photos.gallery.map((photo, i) => i === index ? photoUrl : photo));
       else if (area === "coastAndLocation") {
@@ -250,39 +223,48 @@ export default function BackofficePanel() {
         updatePhoto("coastAndLocation", index === undefined ? [...photos, photoUrl] : photos.map((photo, i) => i === index ? photoUrl : photo));
       }
       else updatePhoto(area, photoUrl);
+      suppressDraftToast.current = false;
       setMessage(localPreview ? "Photo added to local preview. Save homepage to keep it in this browser." : "Photo updated. Save homepage to publish your changes.");
+      showBackofficeToast(localPreview ? "Photo added to the local draft." : "Photo uploaded. Save the homepage to publish it.", "success");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Upload failed. Check your storage settings.");
+      suppressDraftToast.current = false;
+      const errorText = error instanceof Error ? error.message : "Upload failed. Check your storage settings.";
+      setMessage(errorText);
+      showBackofficeToast(errorText, "error");
     }
     setBusy(false);
   }
 
-  const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
-  const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
+  const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
+  const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
   const removeVisualPhoto = (area: PhotoArea, index: number) => {
     if (area === "hero") {
       if (content.heroImages.length <= 1) { setMessage("Keep at least one hero photo. Add another photo before deleting this one."); return; }
-      update("heroImages", content.heroImages.filter((_, photoIndex) => photoIndex !== index));
+      suppressDraftToast.current = true; update("heroImages", content.heroImages.filter((_, photoIndex) => photoIndex !== index)); suppressDraftToast.current = false;
     } else if (area === "gallery" || area === "coastAndLocation") {
       const photos = content.photos[area] ?? [];
       if (index < 0 || index >= photos.length) return;
-      updatePhoto(area, photos.filter((_, photoIndex) => photoIndex !== index));
+      suppressDraftToast.current = true; updatePhoto(area, photos.filter((_, photoIndex) => photoIndex !== index)); suppressDraftToast.current = false;
     } else if (area === "apparel" || area === "surfGoods" || area === "manifesto" || area === "storefront") {
-      updatePhoto(area, "");
+      suppressDraftToast.current = true; updatePhoto(area, ""); suppressDraftToast.current = false;
     }
     setMessage("Photo removed from the homepage draft. Save homepage to publish your changes.");
+    showBackofficeToast("Photo removed from the homepage draft. Save homepage to publish it.", "info");
   };
-  const updateService = (index: number, field: "category" | "title" | "description", value: string) => { setMessage(""); setContent((current) => ({ ...current, services: current.services.map((service, i) => i === index ? { ...service, [field]: value } : service) })); };
-  const updateCopy = <K extends CopyTextKey>(field: K, value: HomeContent["copy"][K]) => { setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, [field]: value } })); };
-  const updateManifestoStamp = (index: number, value: string) => { setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, manifestoStamp: current.copy.manifestoStamp.map((line, i) => i === index ? value : line) } })); };
-  const updateManifesto = <K extends keyof HomeContent["manifesto"]>(field: K, value: HomeContent["manifesto"][K]) => { setMessage(""); setContent((current) => ({ ...current, manifesto: { ...current.manifesto, [field]: value } })); };
-  const updateContact = <K extends keyof HomeContent["contact"]>(field: K, value: HomeContent["contact"][K]) => { setMessage(""); setContent((current) => ({ ...current, contact: { ...current.contact, [field]: value } })); };
+  const updateService = (index: number, field: "category" | "title" | "description", value: string) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, services: current.services.map((service, i) => i === index ? { ...service, [field]: value } : service) })); };
+  const updateCopy = <K extends CopyTextKey>(field: K, value: HomeContent["copy"][K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, [field]: value } })); };
+  const updateManifestoStamp = (index: number, value: string) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, copy: { ...current.copy, manifestoStamp: current.copy.manifestoStamp.map((line, i) => i === index ? value : line) } })); };
+  const updateManifesto = <K extends keyof HomeContent["manifesto"]>(field: K, value: HomeContent["manifesto"][K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, manifesto: { ...current.manifesto, [field]: value } })); };
+  const updateContact = <K extends keyof HomeContent["contact"]>(field: K, value: HomeContent["contact"][K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, contact: { ...current.contact, [field]: value } })); };
   const movePhoto = (area: "hero" | "gallery" | "coastAndLocation", index: number, direction: -1 | 1) => {
     const photos = [...(area === "hero" ? content.heroImages : (content.photos[area] ?? []))];
     const target = index + direction;
     if (target < 0 || target >= photos.length) return;
     [photos[index], photos[target]] = [photos[target], photos[index]];
+    suppressDraftToast.current = true;
     if (area === "hero") update("heroImages", photos); else updatePhoto(area, photos);
+    suppressDraftToast.current = false;
+    showBackofficeToast("Photo order updated in the homepage draft. Save homepage to publish it.", "info");
   };
 
   const copyFieldGroups: { title: string; fields: [CopyTextKey, string][] }[] = [
@@ -302,13 +284,16 @@ export default function BackofficePanel() {
     visualFrame.current?.contentWindow?.postMessage(draft, window.location.origin);
   };
 
-  const moveSection = (from: number, to: number) => setContent((current) => {
-    if (to < 0 || to >= current.sectionOrder.length) return current;
-    const sectionOrder = [...current.sectionOrder];
-    const [section] = sectionOrder.splice(from, 1);
-    sectionOrder.splice(to, 0, section);
-    return { ...current, sectionOrder };
-  });
+  const moveSection = (from: number, to: number) => {
+    if (to < 0 || to >= content.sectionOrder.length || from === to) return;
+    notifyDraftEdit();
+    setContent((current) => {
+      const sectionOrder = [...current.sectionOrder];
+      const [section] = sectionOrder.splice(from, 1);
+      sectionOrder.splice(to, 0, section);
+      return { ...current, sectionOrder };
+    });
+  };
 
   useEffect(() => {
     if (editorMode === "visual") sendPreviewDraft();
@@ -318,6 +303,7 @@ export default function BackofficePanel() {
     const receiveVisualEdit = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === "weskos-visual-edit" && typeof event.data.field === "string" && typeof event.data.value === "string") {
+        notifyDraftEdit();
         setMessage("");
         setContent((current) => setContentAtPath(current, event.data.field, event.data.value));
       }
@@ -333,22 +319,14 @@ export default function BackofficePanel() {
     return () => window.removeEventListener("message", receiveVisualEdit);
   }, [content, localPreview, status]);
 
-  if (status === "checking") return <main className="backoffice-shell"><div className="backoffice-loading">Loading Weskos backoffice…</div></main>;
-  if (status === "not-configured") return <main className="backoffice-shell"><section className="login-card"><a className="admin-brand" href="/">← Back to Weskos</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p className="eyebrow">WESKOS LEGAL CO. · PRIVATE AREA</p><h1>Backoffice setup required.</h1><p className="login-copy">The CMS is locked until Supabase is connected. Configure the Supabase project URL and anon key, enable email and password sign-in, then create and allowlist an admin user.</p></section></main>;
-  if (status === "signed-out" || status === "not-admin") return <main className="backoffice-shell"><section className="login-card"><img src="/images/weskos-logo.webp" alt="Weskos"/><h1>Welcome back.</h1>
-    <form className="admin-form" onSubmit={(event) => void signIn(event)}>
-      <label>Email<input type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com"/></label>
-      <PasswordInput label="Password" autoComplete="current-password" value={password} onChange={setPassword}/>
-      <button className="admin-button" type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-    </form>
-    {message && <p className="admin-message" role="status">{message}</p>}</section></main>;
+  if (status !== "admin") return <main className="backoffice-shell"><div className="backoffice-loading">Checking your backoffice session…</div></main>;
 
-  return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><nav aria-label="Backoffice navigation"><button type="button" className={activeTab !== "account" ? "admin-nav-active" : ""} onClick={() => { setEditorMode("manual"); setActiveTab("hero"); }}>⌂ &nbsp; Homepage</button><button id="admin-nav-account" type="button" className={activeTab === "account" ? "admin-nav-active" : ""} onClick={() => { setEditorMode("manual"); setActiveTab("account"); }}>⚙ &nbsp; Account settings</button><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom"><span>{localPreview ? "LOCAL PREVIEW" : "SUPABASE ADMIN"}</span>{localPreview ? <a href="/">Exit</a> : <button onClick={signOut}>Sign out</button>}</div></aside>
-    <section className={`admin-main ${editorMode === "visual" ? "admin-main-visual" : ""}`}><div className="admin-topbar"><div><p className="eyebrow">{activeTab === "account" ? "ADMIN PROFILE" : "CONTENT MANAGEMENT"}</p><h1>{activeTab === "account" ? "Account settings" : "Homepage editor"}</h1><p>{activeTab === "account" ? "Manage your admin username and sign-in password." : "Update the first impression your visitors see."}</p></div></div>
-    {activeTab !== "account" && <div className="admin-editor-modes" role="group" aria-label="Editing mode"><button type="button" className={editorMode === "manual" ? "is-active" : ""} aria-pressed={editorMode === "manual"} onClick={() => setEditorMode("manual")}>Manual</button><button type="button" className={editorMode === "visual" ? "is-active" : ""} aria-pressed={editorMode === "visual"} onClick={() => setEditorMode("visual")}>Visual</button></div>}
-    {localPreview && activeTab !== "account" && <p className="local-preview-note">Local preview: edits are saved only in this browser. Supabase and live website are untouched.</p>}
-    {editorMode === "manual" && activeTab !== "account" && <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["copy", "All text"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>}
-    {editorMode === "manual" && <div className="admin-tab-content" id="editor-panel" role="tabpanel" aria-labelledby={activeTab === "account" ? "admin-nav-account" : `editor-tab-${activeTab}`}>
+  return <main className="backoffice-app"><aside className="admin-sidebar"><a href="/" className="admin-brand">← View website</a><img src="/images/weskos-logo.webp" alt="Weskos"/><p>BACKOFFICE</p><div className="admin-role-badge"><small>LOGGED IN AS</small><strong>{localPreview ? "Local preview" : officeSession ? "Admin Weskos" : "Dev"}</strong></div><nav aria-label="Backoffice navigation"><button type="button" className="admin-nav-active" onClick={() => { setEditorMode("manual"); setActiveTab("hero"); }}>⌂ &nbsp; Homepage</button>{!officeSession && <a href="/backoffice/dev">⚙ &nbsp; Dev panel</a>}<a href="/backoffice/account">♙ &nbsp; Account settings</a><a href="/#services">↗ &nbsp; View services</a></nav><div className="admin-sidebar-bottom">{localPreview ? <a href="/">Exit preview</a> : <button onClick={() => void signOut()}>Sign out</button>}</div></aside>
+    <section className={`admin-main ${editorMode === "visual" ? "admin-main-visual" : ""}`}><div className="admin-topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h1>Homepage editor</h1><p>Update the first impression your visitors see.</p></div></div>
+    <div className="admin-editor-modes" role="group" aria-label="Editing mode"><button type="button" className={editorMode === "manual" ? "is-active" : ""} aria-pressed={editorMode === "manual"} onClick={() => setEditorMode("manual")}>Manual</button><button type="button" className={editorMode === "visual" ? "is-active" : ""} aria-pressed={editorMode === "visual"} onClick={() => setEditorMode("visual")}>Visual</button></div>
+    {localPreview && <p className="local-preview-note">Local preview: edits are saved only in this browser. Supabase and live website are untouched.</p>}
+    {editorMode === "manual" && <nav className="admin-editor-tabs" role="tablist" aria-label="Homepage sections">{([ ["hero", "Hero"], ["photos", "Photos"], ["copy", "All text"], ["story", "Story"], ["services", "Services"], ["contact", "Contact"] ] as const).map(([tab, label], index) => <button key={tab} type="button" role="tab" id={`editor-tab-${tab}`} aria-selected={activeTab === tab} aria-controls="editor-panel" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</nav>}
+    {editorMode === "manual" && <div className="admin-tab-content" id="editor-panel" role="tabpanel" aria-labelledby={`editor-tab-${activeTab}`}>
     {activeTab === "hero" && <div className="admin-editor" id="home-editor"><div className="editor-title"><span>01</span><div><h2>Hero section</h2><p>Edit the Hero message and the order and timing of its photos.</p></div></div>
       <label>Hero title<input value={content.heroTitle} onChange={(event) => update("heroTitle", event.target.value)}/></label>
       <label>Rotating phrases <small>One phrase per line · changes every {content.heroPhraseIntervalSeconds} seconds</small><textarea rows={4} value={content.heroPhrases.join("\n")} onChange={(event) => update("heroPhrases", event.target.value.split("\n").map((line) => line.trim()).filter(Boolean))}/></label>
@@ -378,16 +356,6 @@ export default function BackofficePanel() {
       <div className="admin-subsection"><h3>Feature banner</h3><label>Eyebrow<input value={content.manifesto.eyebrow} onChange={(event) => updateManifesto("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.manifesto.title} onChange={(event) => updateManifesto("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.manifesto.body} onChange={(event) => updateManifesto("body", event.target.value)}/></label><label>Button text<input value={content.manifesto.buttonText} onChange={(event) => updateManifesto("buttonText", event.target.value)}/></label></div>
       <div className="admin-subsection"><h3>Contact section</h3><label>Eyebrow<input value={content.contact.eyebrow} onChange={(event) => updateContact("eyebrow", event.target.value)}/></label><label>Headline <small>Put each line on a new line.</small><textarea rows={2} value={content.contact.title} onChange={(event) => updateContact("title", event.target.value)}/></label><label>Description<textarea rows={3} value={content.contact.body} onChange={(event) => updateContact("body", event.target.value)}/></label><label>Button text<input value={content.contact.buttonText} onChange={(event) => updateContact("buttonText", event.target.value)}/></label></div>
     </div>}
-    {activeTab === "account" && <div className="admin-editor"><div className="editor-title"><div><h2>Profile and sign-in</h2><p>Update the admin username or change the password used to sign in.</p></div></div>
-      <div className="admin-account-settings">
-        <section className="admin-subsection"><h3>Admin username</h3>
-          {localPreview ? <p className="admin-account-note">Username changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-username-form" onSubmit={(event) => void saveUsername(event)}><label>Username<input autoComplete="nickname" maxLength={40} required value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Admin username"/></label><p className="admin-account-note">Username is saved in the <code>admin_users</code> table. Sign in with your email.</p>{!usernameColumnReady && <p className="admin-message" role="status">Run the updated <code>supabase/setup.sql</code> in Supabase SQL Editor to enable username editing.</p>}<button className="admin-button" type="submit" disabled={busy || !usernameColumnReady}>{busy ? "Saving username…" : "Save username"}</button>{usernameMessage && <p className="admin-message" role="status">{usernameMessage}</p>}</form>}
-        </section>
-        <section className="admin-subsection"><h3>Change password</h3>
-          {localPreview ? <p className="admin-account-note">Password changes are available after signing in with Supabase. Local preview does not connect to an account.</p> : <form className="admin-form account-password-form" onSubmit={(event) => void changePassword(event)}><PasswordInput label="New password" autoComplete="new-password" minLength={8} value={newPassword} onChange={setNewPassword}/><PasswordInput label="Confirm new password" autoComplete="new-password" minLength={8} value={confirmPassword} onChange={setConfirmPassword}/><p className="admin-account-note">Password is changed securely through Supabase Auth; it is never written to a normal table.</p><button className="admin-button" type="submit" disabled={busy}>{busy ? "Changing password…" : "Change password"}</button>{passwordMessage && <p className="admin-message" role="status">{passwordMessage}</p>}</form>}
-        </section>
-      </div>
-    </div>}
     </div>}
     {editorMode === "visual" && <div className="visual-editor-shell">
       <aside className="visual-section-panel">
@@ -415,6 +383,6 @@ export default function BackofficePanel() {
         <div className={`visual-frame-wrap visual-frame-${previewMode}`}><iframe ref={visualFrame} src="/?admin-preview=1&visual-edit=1" title="Visual homepage editor" onLoad={sendPreviewDraft}/></div>
       </section>
     </div>}
-    {activeTab !== "account" && <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>}
+    <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>
     </section></main>;
 }

@@ -2,10 +2,11 @@
 -- Safe to run again: it only replaces an existing record when its content is still {}.
 begin;
 
--- Store the admin's editable profile name in the allowlist table.
--- Passwords stay in Supabase Auth and must never be stored in this table.
+-- Store Dev account timestamps in the allowlist; office credentials use a separate table below.
 alter table public.admin_users
-  add column if not exists username text not null default '';
+  add column if not exists username text not null default '',
+  add column if not exists last_login_at timestamptz,
+  add column if not exists created_at timestamptz not null default now();
 
 alter table public.admin_users enable row level security;
 grant select, update on public.admin_users to authenticated;
@@ -17,6 +18,35 @@ create policy "Admins can update their own username"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- Office accounts use this table for password HASHES only. Raw passwords are never stored or returned.
+create table if not exists public.backoffice_staff (
+  id uuid primary key default gen_random_uuid(),
+  username text not null,
+  password_hash text not null,
+  is_active boolean not null default true,
+  last_login_at timestamptz,
+  password_changed_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.backoffice_staff add column if not exists password_changed_at timestamptz not null default now();
+create unique index if not exists backoffice_staff_username_lower_key on public.backoffice_staff (lower(username));
+alter table public.backoffice_staff enable row level security;
+revoke all on public.backoffice_staff from anon, authenticated;
+
+create table if not exists public.backoffice_audit (
+  id bigint generated always as identity primary key,
+  actor_role text not null check (actor_role in ('dev', 'office')),
+  actor_id uuid not null,
+  actor_username text not null,
+  action text not null,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists backoffice_audit_created_at_idx on public.backoffice_audit (created_at desc);
+alter table public.backoffice_audit enable row level security;
+revoke all on public.backoffice_audit from anon, authenticated;
 
 insert into public.site_content as current_home (id, content, updated_at)
 values (

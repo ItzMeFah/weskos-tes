@@ -27,18 +27,15 @@ Buka http://localhost:3000.
 
 1. Buat project Supabase.
 2. Salin `.env.example` sebagai `.env.local` dan isi URL serta anon key dari Project Settings → API.
-3. Jalankan `supabase/setup.sql` melalui SQL Editor.
-4. Di Supabase Authentication → Sign In / Providers, aktifkan Email provider dan pastikan password sign-in diizinkan.
-5. Buat admin melalui Authentication → Users → Add user, memakai email dan password yang akan dipakai untuk masuk. Tambahkan UUID user itu ke `public.admin_users` melalui SQL Editor; hanya UUID yang ada di tabel tersebut yang bisa membuka editor. Contoh query berdasarkan email ada di komentar `supabase/setup.sql`.
-6. Masuk ke `/backoffice` menggunakan email dan password akun tersebut.
-7. Klik **Save homepage** untuk menyimpan ke Supabase. Gunakan input upload untuk mengirim foto atau MP4 (maks. 10 MB) ke Storage.
+3. Tambahkan `SUPABASE_SERVICE_ROLE_KEY` dan `BACKOFFICE_SESSION_SECRET` ke environment server lokal dan Vercel. Service role key harus server-only dan tidak boleh memakai prefix `NEXT_PUBLIC_`; buat session secret acak minimal 32 karakter.
+4. Jalankan `supabase/setup.sql` melalui SQL Editor.
+5. Di Supabase Authentication → Sign In / Providers, aktifkan Email provider untuk akun Dev. Tambahkan UUID Dev ke `public.admin_users`; hanya Dev yang ada di allowlist ini yang bisa membuka panel Dev.
+6. Dev masuk lewat `/backoffice`, lalu membuat username dan password admin kantor di Dev control panel. Admin kantor masuk lewat halaman login yang sama dengan username dan password tersebut.
+7. Admin kantor mengedit homepage di `/backoffice/homepage` dan akunnya di `/backoffice/account`. Perubahan homepage, login, dan perubahan password dicatat dalam audit log.
+8. Klik **Save homepage** untuk menyimpan ke Supabase. Gunakan input upload untuk mengirim foto ke Storage.
 
-Pengaturan username admin disimpan di `public.admin_users`; jalankan ulang `supabase/setup.sql` untuk menambah kolom dan policy update username. Password tetap dikelola Supabase Auth dan tidak disimpan ke tabel aplikasi.
+Nama dan aktivitas Dev tersimpan di `public.admin_users` dan `public.backoffice_audit`. Username, hash password, status aktif, dan waktu login admin kantor tersimpan di `public.backoffice_staff`; audit tidak menyimpan password polos.
 
 Service role key jangan dimasukkan ke variabel `NEXT_PUBLIC_*` atau kode browser. RLS admin allowlist melindungi CMS homepage dan Storage; katalog produk saat ini baru disiapkan untuk pembacaan produk yang dipublikasikan.
 
-Backoffice memakai email dan password melalui Supabase Auth. Pembuatan akun dikelola dari Supabase Dashboard; tidak ada pendaftaran publik, mode demo, atau penyimpanan konten lokal. Jika konfigurasi Supabase belum tersedia, editor akan tetap terkunci.
-
-## Persiapan integrasi Google AI Studio
-
-Kode dan aset dipisah dari konfigurasi Supabase agar mudah dijadikan bahan untuk proses import atau adaptasi berikutnya. Sertakan folder `app`, `lib`, `public`, `supabase` serta file konfigurasi. Simpan kredensial di environment variables, bukan di source.
+Backoffice memiliki satu pintu login: Supabase Auth untuk Dev dan akun `backoffice_staff` untuk admin kantor. Password admin kantor disimpan sebagai hash scrypt dan hanya bisa direset, bukan dibaca kembali. Jangan simpan password polos di tabel atau audit log. Tidak ada pendaftaran publik.
