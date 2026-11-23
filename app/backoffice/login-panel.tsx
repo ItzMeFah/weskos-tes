@@ -36,7 +36,7 @@ export default function BackofficeLoginPanel() {
 
       if (officeResponse.status === 404 && loginName.includes("@") && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email: loginName, password });
-        if (error || !data.user) throw new Error(error?.message || "Dev sign-in failed. Check the Supabase email and password.");
+        if (error || !data.user) throw new Error("No office account is saved for this email, and the email/password was not accepted by Supabase Auth. Create the office account first or check the credentials.");
         const { data: dev, error: devError } = await supabase.from("admin_users").select("user_id").eq("user_id", data.user.id).maybeSingle();
         if (devError) {
           await supabase.auth.signOut();
@@ -44,7 +44,7 @@ export default function BackofficeLoginPanel() {
         }
         if (!dev) {
           await supabase.auth.signOut();
-          throw new Error("This Supabase account is not allowlisted as Dev.");
+          throw new Error("This email does not have backoffice access.");
         }
         if (data.session?.access_token) {
           await fetch("/api/backoffice/auth/logout", { method: "POST", credentials: "include" });
@@ -64,9 +64,9 @@ export default function BackofficeLoginPanel() {
     }
   }
 
-  return <main className="backoffice-shell"><section className="login-card"><img src="/images/weskos-logo.webp" alt="Weskos"/><h1>Welcome back.</h1><p className="login-copy">Use your Supabase Dev account or the office login set by Dev.</p>
+  return <main className="backoffice-shell"><section className="login-card"><img src="/images/weskos-logo.webp" alt="Weskos"/><h1>Welcome back.</h1>
     <form className="admin-form" onSubmit={(event) => void login(event)}>
-      <label>Username / Dev email<input type="text" inputMode="text" autoCapitalize="none" spellCheck={false} autoComplete="username" required value={identity} onChange={(event) => setIdentity(event.target.value)} placeholder="Username or Dev email"/></label>
+      <label>Email / username<input type="text" inputMode="text" autoCapitalize="none" spellCheck={false} autoComplete="username" required value={identity} onChange={(event) => setIdentity(event.target.value)} placeholder="Email or username"/></label>
       <PasswordField label="Password" autoComplete="current-password" value={password} onChange={setPassword}/>
       <button className="admin-button" type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
     </form>

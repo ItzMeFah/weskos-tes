@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     await addAudit(actor, "office_login");
     const token = createOfficeSession(actor);
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-    return Response.json({ role: "office", username: user.username }, { headers: { "Set-Cookie": `${OFFICE_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/backoffice; HttpOnly; SameSite=Strict; Max-Age=43200${secure}` } });
+    return Response.json({ role: "office", username: user.username }, { headers: { "Set-Cookie": `${OFFICE_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=43200${secure}` } });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Office sign-in failed.", 503);
   }
