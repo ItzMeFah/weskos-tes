@@ -54,6 +54,10 @@ export async function convertLogoToTransparentWebP(file: File): Promise<File> {
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     const image = context.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = image.data;
+    let sourceHasTransparency = false;
+    for (let offset = 3; offset < pixels.length; offset += 4) {
+      if (pixels[offset] < 255) { sourceHasTransparency = true; break; }
+    }
     for (let offset = 0; offset < pixels.length; offset += 4) {
       const alpha = pixels[offset + 3] / 255;
       if (alpha === 0) continue;
@@ -62,10 +66,16 @@ export async function convertLogoToTransparentWebP(file: File): Promise<File> {
       const blue = pixels[offset + 2];
       const brightness = Math.max(red, green, blue);
       const chroma = brightness - Math.min(red, green, blue);
-      if (brightness > 200 && chroma < 48) {
+      if (!sourceHasTransparency && brightness > 200 && chroma < 48) {
         const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
         const foregroundAlpha = Math.max(0, Math.min(1, (255 - luminance) / 180));
         pixels[offset + 3] = Math.round(255 * alpha * foregroundAlpha);
+      }
+      // Store a dark monochrome mark. The site can then invert it to white in dark mode.
+      if (pixels[offset + 3] > 0) {
+        pixels[offset] = 0;
+        pixels[offset + 1] = 0;
+        pixels[offset + 2] = 0;
       }
     }
     context.putImageData(image, 0, 0);
