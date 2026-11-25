@@ -1,4 +1,5 @@
 export type HomeContent = {
+  logo: string;
   sectionOrder: ("intro" | "services" | "photoStory" | "manifesto" | "contact")[];
   heroTitle: string;
   heroPhrases: string[];
@@ -81,6 +82,7 @@ function useOptimizedLocalImage(src: string): string {
 }
 
 export const DEFAULT_HOME_CONTENT: HomeContent = {
+  logo: "/images/weskos-logo.webp",
   sectionOrder: ["intro", "services", "photoStory", "manifesto", "contact"],
   heroTitle: "Make your next move.",
   heroPhrases: ["Start your business with clarity.", "Know the land before you sign.", "Handle permits with local guidance.", "Plan your stay in Indonesia."],
@@ -160,6 +162,7 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
   return {
     ...DEFAULT_HOME_CONTENT,
     ...contentWithoutLegacyVideo,
+    logo: typeof value?.logo === "string" && value.logo.trim() ? value.logo.trim() : DEFAULT_HOME_CONTENT.logo,
     sectionOrder: [...requestedSections, ...validSections.filter((section) => !requestedSections.includes(section))],
     // Move the original surf-first defaults forward while preserving any copy
     // the Weskos team has already customized in Supabase.

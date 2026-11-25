@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { showBackofficeToast } from "@/lib/backoffice-toast";
-import { convertImageToWebP } from "@/lib/image-conversion";
+import { convertImageToWebP, convertLogoToTransparentWebP } from "@/lib/image-conversion";
 import { DEFAULT_HOME_CONTENT, HOME_CONTENT_KEY, normalizeHomeContent, type HomeContent } from "@/lib/home-content";
 
 type AdminStatus = "checking" | "not-configured" | "signed-out" | "admin" | "not-admin";
@@ -235,6 +235,42 @@ export default function BackofficePanel() {
     setBusy(false);
   }
 
+  async function uploadLogo(file: File | undefined) {
+    if (!file) return;
+    setBusy(true); setMessage("");
+    try {
+      const webp = await convertLogoToTransparentWebP(file);
+      let logoUrl: string;
+      if (localPreview) {
+        logoUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("Could not read the new logo."));
+          reader.readAsDataURL(webp);
+        });
+      } else {
+        if (status !== "admin") throw new Error("Sign in with an approved Weskos admin account to upload a logo.");
+        const form = new FormData();
+        form.append("file", webp);
+        const response = await authorizedFetch("/api/backoffice/media", { method: "POST", body: form });
+        const result = await response.json() as { url?: string; error?: string };
+        if (!response.ok || !result.url) throw new Error(result.error || "Logo upload failed.");
+        logoUrl = result.url;
+      }
+      suppressDraftToast.current = true;
+      update("logo", logoUrl);
+      suppressDraftToast.current = false;
+      setMessage(localPreview ? "Transparent logo added to the local draft. Save homepage to keep it in this browser." : "Transparent logo uploaded. Save homepage to publish it.");
+      showBackofficeToast(localPreview ? "Logo added to the local draft." : "Logo uploaded with a transparent background. Save the homepage to publish it.", "success");
+    } catch (error) {
+      suppressDraftToast.current = false;
+      const errorText = error instanceof Error ? error.message : "Logo upload failed.";
+      setMessage(errorText);
+      showBackofficeToast(errorText, "error");
+    }
+    setBusy(false);
+  }
+
   const update = <K extends keyof HomeContent>(field: K, value: HomeContent[K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, [field]: value })); };
   const updatePhoto = <K extends keyof HomeContent["photos"]>(field: K, value: HomeContent["photos"][K]) => { notifyDraftEdit(); setMessage(""); setContent((current) => ({ ...current, photos: { ...current.photos, [field]: value } })); };
   const removeVisualPhoto = (area: PhotoArea, index: number) => {
@@ -313,6 +349,10 @@ export default function BackofficePanel() {
       }
       if (event.data?.type === "weskos-visual-photo-delete" && typeof event.data.area === "string" && typeof event.data.index === "number") {
         removeVisualPhoto(event.data.area as PhotoArea, event.data.index);
+      }
+      const logoFile = event.data?.file;
+      if (event.data?.type === "weskos-visual-logo-upload" && logoFile && typeof logoFile.type === "string" && typeof logoFile.arrayBuffer === "function") {
+        void uploadLogo(logoFile as File);
       }
     };
     window.addEventListener("message", receiveVisualEdit);
