@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_HOME_CONTENT, type HomeContent } from "@/lib/home-content";
 import { instagramUrl, whatsappUrl } from "@/lib/contact-links";
 
@@ -16,30 +16,15 @@ function Icon({ name }: { name: "whatsapp" | "instagram" | "mail" | "moon" | "su
 
 export default function SiteHeader({ content = DEFAULT_HOME_CONTENT }: { content?: HomeContent }) {
   const [dark, setDark] = useState(false);
-  const [visualEdit, setVisualEdit] = useState(false);
-  const [showLogoEdit, setShowLogoEdit] = useState(false);
-  const logoInput = useRef<HTMLInputElement>(null);
   const whatsapp = whatsappUrl(content.contact.phone);
   const instagram = instagramUrl(content.contact.instagram);
   useEffect(() => {
-    setVisualEdit(new URLSearchParams(window.location.search).has("visual-edit"));
     let saved: string | null = null;
     try { saved = localStorage.getItem("weskos-theme"); } catch { /* Theme still works for this session without storage. */ }
     const isDark = saved === "dark";
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
     setDark(isDark);
   }, []);
-  const onLogoDoubleClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!visualEdit) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setShowLogoEdit(true);
-  };
-  const onLogoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && visualEdit) window.parent.postMessage({ type: "weskos-visual-logo-upload", file }, window.location.origin);
-    event.currentTarget.value = "";
-  };
   function toggleTheme() {
     // Read the live document value so the control stays correct if the page
     // is restored from the back/forward cache or another script changes it.
@@ -50,7 +35,7 @@ export default function SiteHeader({ content = DEFAULT_HOME_CONTENT }: { content
   }
 
   return <header className="site-header">
-    <div className="site-brand-edit-wrap"><a href="/#home" className="site-brand" data-cms-logo onDoubleClick={onLogoDoubleClick} aria-label={content.copy.homeAriaLabel}><img src={content.logo} alt={content.copy.homeAriaLabel}/></a>{visualEdit && showLogoEdit && <button type="button" className="visual-logo-edit-trigger" onClick={() => logoInput.current?.click()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span>Edit logo</span></button>}<input ref={logoInput} className="visual-logo-file-input" type="file" accept="image/*" onChange={onLogoFileChange} aria-label="Upload a new Weskos logo"/></div>
+    <div className="site-brand-edit-wrap"><a href="/#home" className="site-brand" aria-label={content.copy.homeAriaLabel}><img src={content.logo} alt={content.copy.homeAriaLabel} data-cms-image-area="logo" data-cms-image-index="0"/></a></div>
     <nav className="main-nav" aria-label={content.copy.navAriaLabel}>
       <a className="nav-link" href="/#home"><span data-cms-field="copy.navHome">{content.copy.navHome}</span></a>
       <div className="nav-dropdown services-dropdown"><a className="nav-link" href="/#services" aria-haspopup="true"><span data-cms-field="copy.navServices">{content.copy.navServices}</span></a><div className="nav-menu" aria-label={content.copy.servicesMenuAriaLabel}>{content.services.map((service, index) => <a key={service.title} href={serviceRoutes[index]}><span data-cms-field={"services[" + index + "].title"}>{service.title}</span></a>)}</div></div>

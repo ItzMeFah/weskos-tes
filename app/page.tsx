@@ -22,30 +22,49 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
       const element = target instanceof HTMLElement ? target.closest<HTMLImageElement>("img[data-cms-image-area]") : null;
       if (!element) { setImage(null); return; }
       const rect = element.getBoundingClientRect();
-      const next = { area: element.dataset.cmsImageArea ?? "", index: Number(element.dataset.cmsImageIndex ?? 0), top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - 80, window.innerWidth - 80)) };
+      const area = element.dataset.cmsImageArea ?? "";
+      const toolbarWidth = area === "logo" ? 120 : 80;
+      const next = { area, index: Number(element.dataset.cmsImageIndex ?? 0), top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) };
       setImage((current) => current && current.area === next.area && current.index === next.index && current.top === next.top && current.left === next.left ? current : next);
+    };
+    const onDoubleClick = (event: MouseEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const logo = target?.closest<HTMLImageElement>('img[data-cms-image-area="logo"]');
+      if (!logo) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = logo.getBoundingClientRect();
+      const toolbarWidth = 120;
+      setImage({ area: "logo", index: 0, top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) });
     };
     const reposition = () => {
       const hovered = document.querySelector<HTMLImageElement>("img[data-cms-image-area]:hover");
       if (!hovered) return;
       const rect = hovered.getBoundingClientRect();
-      setImage((current) => current ? { ...current, top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - 80, window.innerWidth - 80)) } : current);
+      setImage((current) => {
+        if (!current) return current;
+        const toolbarWidth = current.area === "logo" ? 120 : 80;
+        return { ...current, top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) };
+      });
     };
     document.addEventListener("pointermove", updateImage);
+    document.addEventListener("dblclick", onDoubleClick);
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("pointermove", updateImage);
+      document.removeEventListener("dblclick", onDoubleClick);
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
     };
   }, []);
 
   if (!image?.area) return null;
+  const isLogo = image.area === "logo";
   const cannotDelete = image.area === "hero" && heroImageCount <= 1;
   const replaceImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) window.parent.postMessage({ type: "weskos-visual-photo-drop", file, area: image.area, index: image.index }, window.location.origin);
+    if (file) window.parent.postMessage(isLogo ? { type: "weskos-visual-logo-upload", file } : { type: "weskos-visual-photo-drop", file, area: image.area, index: image.index }, window.location.origin);
     event.currentTarget.value = "";
   };
   const deleteImage = () => {
@@ -54,8 +73,8 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
   };
 
   return <div className="visual-image-actions" style={{ top: image.top, left: image.left }}>
-    <label className="visual-image-action" aria-label="Replace photo" title="Replace photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><input type="file" accept="image/*" onChange={replaceImage}/></label>
-    <button className="visual-image-action visual-image-delete" type="button" aria-label="Delete photo" title={cannotDelete ? "Keep at least one hero photo" : "Delete photo"} disabled={cannotDelete} onClick={deleteImage}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
+    <label className={`visual-image-action${isLogo ? " visual-image-action-logo" : ""}`} aria-label={isLogo ? "Edit logo" : "Replace photo"} title={isLogo ? "Edit logo" : "Replace photo"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>{isLogo && <span>Edit logo</span>}<input type="file" accept="image/*" onChange={replaceImage}/></label>
+    {!isLogo && <button className="visual-image-action visual-image-delete" type="button" aria-label="Delete photo" title={cannotDelete ? "Keep at least one hero photo" : "Delete photo"} disabled={cannotDelete} onClick={deleteImage}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>}
   </div>;
 }
 
