@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 import HomeHero from "@/app/components/HomeHero";
@@ -13,6 +13,7 @@ const Arrow = () => <span aria-hidden="true">↗</span>;
 
 function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
   const [image, setImage] = useState<{ area: string; index: number; top: number; left: number } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("visual-edit")) return;
@@ -73,7 +74,8 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
   };
 
   return <div className="visual-image-actions" style={{ top: image.top, left: image.left }}>
-    <label className={`visual-image-action${isLogo ? " visual-image-action-logo" : ""}`} aria-label={isLogo ? "Edit logo" : "Replace photo"} title={isLogo ? "Edit logo" : "Replace photo"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>{isLogo && <span>Edit logo</span>}<input type="file" accept="image/*" onChange={replaceImage}/></label>
+    <button className={`visual-image-action${isLogo ? " visual-image-action-logo" : ""}`} type="button" aria-label={isLogo ? "Edit logo" : "Replace photo"} title={isLogo ? "Edit logo" : "Replace photo"} onClick={() => fileInput.current?.click()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>{isLogo && <span>Edit logo</span>}</button>
+    <input ref={fileInput} className="visual-image-file-picker" type="file" accept="image/*" onChange={replaceImage} aria-label={isLogo ? "Choose a new Weskos logo" : "Choose a replacement photo"}/>
     {!isLogo && <button className="visual-image-action visual-image-delete" type="button" aria-label="Delete photo" title={cannotDelete ? "Keep at least one hero photo" : "Delete photo"} disabled={cannotDelete} onClick={deleteImage}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>}
   </div>;
 }

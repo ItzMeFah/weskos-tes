@@ -205,7 +205,7 @@ html[data-visual-edit="true"] [data-cms-image-area].cms-drop-target{outline-colo
 .visual-image-action{position:relative;width:30px;height:30px;display:grid;place-items:center;border:0;background:#fff;color:#172326;cursor:pointer}
 .visual-image-action:hover{background:#d8e75b}
 .visual-image-action svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.visual-image-action input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.visual-image-file-picker{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .visual-image-action.visual-image-delete{background:#fff;color:#9e352a}
 .visual-image-action.visual-image-delete:hover:not(:disabled){background:#f3d3ce}
 .visual-image-action.visual-image-delete:disabled{opacity:.4;cursor:not-allowed}

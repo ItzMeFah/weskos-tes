@@ -77,9 +77,11 @@ export default function BackofficePanel() {
   const [localPreview, setLocalPreview] = useState(false);
   const [officeSession, setOfficeSession] = useState(false);
   const visualFrame = useRef<HTMLIFrameElement>(null);
+  const contentRef = useRef<HomeContent>(DEFAULT_HOME_CONTENT);
   const devToken = useRef<string | null>(null);
   const draftToastShown = useRef(false);
   const suppressDraftToast = useRef(false);
+  contentRef.current = content;
 
   function notifyDraftEdit() {
     if (draftToastShown.current || suppressDraftToast.current) return;
@@ -237,7 +239,8 @@ export default function BackofficePanel() {
 
   async function uploadLogo(file: File | undefined) {
     if (!file) return;
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage("Processing the logo and removing its light background…");
+    showBackofficeToast("Logo selected. Removing the background…", "info");
     try {
       const webp = await convertLogoToTransparentWebP(file);
       let logoUrl: string;
@@ -258,7 +261,10 @@ export default function BackofficePanel() {
         logoUrl = result.url;
       }
       suppressDraftToast.current = true;
-      update("logo", logoUrl);
+      const updatedContent = { ...contentRef.current, logo: logoUrl };
+      contentRef.current = updatedContent;
+      setContent(updatedContent);
+      visualFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content: updatedContent }, window.location.origin);
       suppressDraftToast.current = false;
       setMessage(localPreview ? "Transparent logo added to the local draft. Save homepage to keep it in this browser." : "Transparent logo uploaded. Save homepage to publish it.");
       showBackofficeToast(localPreview ? "Logo added to the local draft." : "Logo uploaded with a transparent background. Save the homepage to publish it.", "success");
@@ -337,7 +343,7 @@ export default function BackofficePanel() {
 
   useEffect(() => {
     const receiveVisualEdit = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      if (event.origin !== window.location.origin || event.source !== visualFrame.current?.contentWindow) return;
       if (event.data?.type === "weskos-visual-edit" && typeof event.data.field === "string" && typeof event.data.value === "string") {
         notifyDraftEdit();
         setMessage("");
