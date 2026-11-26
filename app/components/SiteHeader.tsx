@@ -35,7 +35,7 @@ export default function SiteHeader({ content = DEFAULT_HOME_CONTENT }: { content
   }
 
   return <header className="site-header">
-    <div className="site-brand-edit-wrap"><a href="/#home" className="site-brand" aria-label={content.copy.homeAriaLabel}><img src={content.logo} alt={content.copy.homeAriaLabel} data-cms-image-area="logo" data-cms-image-index="0"/></a></div>
+    <div className="site-brand-edit-wrap"><a href="/#home" className="site-brand" aria-label={content.copy.homeAriaLabel}><img className={content.logo === DEFAULT_HOME_CONTENT.logo ? "site-logo-default" : "site-logo-custom"} src={content.logo} alt={content.copy.homeAriaLabel} data-cms-image-area="logo" data-cms-image-index="0"/></a></div>
     <nav className="main-nav" aria-label={content.copy.navAriaLabel}>
       <a className="nav-link" href="/#home"><span data-cms-field="copy.navHome">{content.copy.navHome}</span></a>
       <div className="nav-dropdown services-dropdown"><a className="nav-link" href="/#services" aria-haspopup="true"><span data-cms-field="copy.navServices">{content.copy.navServices}</span></a><div className="nav-menu" aria-label={content.copy.servicesMenuAriaLabel}>{content.services.map((service, index) => <a key={service.title} href={serviceRoutes[index]}><span data-cms-field={"services[" + index + "].title"}>{service.title}</span></a>)}</div></div>

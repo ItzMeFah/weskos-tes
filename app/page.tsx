@@ -24,19 +24,19 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
       if (!element) { setImage(null); return; }
       const rect = element.getBoundingClientRect();
       const area = element.dataset.cmsImageArea ?? "";
-      const toolbarWidth = area === "logo" ? 120 : 80;
+      const toolbarWidth = area === "logo" || area === "footerLogo" ? 120 : 80;
       const next = { area, index: Number(element.dataset.cmsImageIndex ?? 0), top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) };
       setImage((current) => current && current.area === next.area && current.index === next.index && current.top === next.top && current.left === next.left ? current : next);
     };
     const onDoubleClick = (event: MouseEvent) => {
       const target = event.target instanceof HTMLElement ? event.target : null;
-      const logo = target?.closest<HTMLImageElement>('img[data-cms-image-area="logo"]');
+      const logo = target?.closest<HTMLImageElement>('img[data-cms-image-area="logo"], img[data-cms-image-area="footerLogo"]');
       if (!logo) return;
       event.preventDefault();
       event.stopPropagation();
       const rect = logo.getBoundingClientRect();
       const toolbarWidth = 120;
-      setImage({ area: "logo", index: 0, top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) });
+      setImage({ area: logo.dataset.cmsImageArea ?? "logo", index: 0, top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) });
     };
     const reposition = () => {
       const hovered = document.querySelector<HTMLImageElement>("img[data-cms-image-area]:hover");
@@ -44,7 +44,7 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
       const rect = hovered.getBoundingClientRect();
       setImage((current) => {
         if (!current) return current;
-        const toolbarWidth = current.area === "logo" ? 120 : 80;
+        const toolbarWidth = current.area === "logo" || current.area === "footerLogo" ? 120 : 80;
         return { ...current, top: Math.max(8, rect.top + 8), left: Math.max(8, Math.min(rect.right - toolbarWidth, window.innerWidth - toolbarWidth)) };
       });
     };
@@ -61,11 +61,11 @@ function VisualImageActions({ heroImageCount }: { heroImageCount: number }) {
   }, []);
 
   if (!image?.area) return null;
-  const isLogo = image.area === "logo";
+  const isLogo = image.area === "logo" || image.area === "footerLogo";
   const cannotDelete = image.area === "hero" && heroImageCount <= 1;
   const replaceImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) window.parent.postMessage(isLogo ? { type: "weskos-visual-logo-upload", file } : { type: "weskos-visual-photo-drop", file, area: image.area, index: image.index }, window.location.origin);
+    if (file) window.parent.postMessage(isLogo ? { type: "weskos-visual-logo-upload", file, area: image.area } : { type: "weskos-visual-photo-drop", file, area: image.area, index: image.index }, window.location.origin);
     event.currentTarget.value = "";
   };
   const deleteImage = () => {
@@ -159,7 +159,8 @@ export default function Home() {
       if (!image || !file || !file.type.startsWith("image/")) return;
       event.preventDefault();
       image.classList.remove("cms-drop-target");
-      window.parent.postMessage({ type: "weskos-visual-photo-drop", file, area: image.dataset.cmsImageArea, index: Number(image.dataset.cmsImageIndex ?? 0) }, window.location.origin);
+      const area = image.dataset.cmsImageArea;
+      window.parent.postMessage(area === "logo" || area === "footerLogo" ? { type: "weskos-visual-logo-upload", file, area } : { type: "weskos-visual-photo-drop", file, area, index: Number(image.dataset.cmsImageIndex ?? 0) }, window.location.origin);
     };
     document.addEventListener("dblclick", onDoubleClick);
     document.addEventListener("focusout", onFocusOut, true);
@@ -227,7 +228,7 @@ export default function Home() {
     <section className="photo-story" data-home-section="photoStory" style={{order: sectionPosition("photoStory")}}><div className="photo-story-heading"><div><p className="eyebrow" data-cms-field="copy.photoStoryEyebrow">{content.copy.photoStoryEyebrow}</p><h2><span data-cms-field="copy.photoStoryTitleStart">{content.copy.photoStoryTitleStart}</span> <em data-cms-field="copy.photoStoryTitleEm">{content.copy.photoStoryTitleEm}</em></h2></div></div><div className="photo-grid">{photoStoryPhotos.map(({src, area, imageIndex}, index) => <figure className={`photo-item photo-item-${index + 1}`} key={`${src}-${index}`}><img data-cms-image-area={area} data-cms-image-index={imageIndex} src={src} alt={`${content.copy.photoStoryAltPrefix} ${index + 1}`} loading="lazy" decoding="async"/><figcaption data-cms-field="copy.photoStoryCaption">{content.copy.photoStoryCaption}</figcaption></figure>)}</div></section>
     <section className="manifesto" data-home-section="manifesto" style={{order: sectionPosition("manifesto")}}><div className="manifesto-image" data-service-reveal="image">{content.photos.manifesto && <img src={content.photos.manifesto} alt={content.copy.manifestoImageAlt} data-cms-image-area="manifesto" data-cms-image-index={0} loading="lazy" decoding="async"/>}<span className="image-caption"><span data-cms-field="copy.manifestoImageCaption">{content.copy.manifestoImageCaption}</span></span></div><div className="manifesto-copy"><p className="eyebrow light" data-cms-field="manifesto.eyebrow">{content.manifesto.eyebrow}</p><h2 data-cms-field="manifesto.title">{content.manifesto.title.split("\n").map((line, index) => <span key={`${line}-${index}`}>{index > 0 && <br/>}{line}</span>)}</h2><p data-cms-field="manifesto.body">{content.manifesto.body}</p><a className="button button-outline" href={whatsapp}><span data-cms-field="manifesto.buttonText">{content.manifesto.buttonText}</span> <Arrow /></a><div className="manifesto-stamp">{content.copy.manifestoStamp.map((line, index) => <span key={index} data-cms-field={"copy.manifestoStamp[" + index + "]"}>{line}</span>)}</div></div></section>
     <section className="visit section-pad" id="contact" data-home-section="contact" style={{order: sectionPosition("contact")}}><div className="visit-layout"><div className="visit-copy-block"><p className="eyebrow" data-cms-field="contact.eyebrow">{content.contact.eyebrow}</p><h2 data-cms-field="contact.title">{content.contact.title.split("\n").map((line, index) => <span key={`${line}-${index}`}>{index > 0 && <br/>}{line}</span>)}</h2><p className="visit-copy" data-cms-field="contact.body">{content.contact.body}</p><p className="visit-address" data-cms-field="contact.address">{content.contact.address}</p><a className="button button-dark" href={whatsapp}><span data-cms-field="contact.buttonText">{content.contact.buttonText}</span> <Arrow /></a></div><a className="visit-photo" href={map} aria-label={content.copy.mapAriaLabel}>{content.photos.storefront && <img src={content.photos.storefront} alt={content.copy.mapPhotoAlt} data-cms-image-area="storefront" data-cms-image-index={0} loading="lazy" decoding="async"/>}<span className="map-chip"><small data-cms-field="copy.mapEyebrow">{content.copy.mapEyebrow}</small><b><span data-cms-field="copy.mapTitle">{content.copy.mapTitle}</span> <Arrow /></b></span></a></div><div className="visit-contacts"><a href={whatsapp}><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.3-4.7a8.5 8.5 0 1 1 16.2-4Z"/><path d="M8 8c.3-.5.6-.6.9-.6h.5l1 2c.1.3 0 .5-.1.7l-.6.6c.6 1.2 1.5 2 2.7 2.6l.7-.7c.2-.2.4-.2.7-.1l1.8.9c.3.2.4.3.3.6-.1.7-.8 1.3-1.5 1.5-1 .3-2.2-.2-3.4-.8-1.9-1-3.2-2.8-3.6-4.1-.3-1.1.1-2 .6-2.6Z"/></svg></span><b data-cms-field="copy.contactWhatsappLabel">{content.copy.contactWhatsappLabel}</b><small data-cms-field="contact.phone">{content.contact.phone}</small></a><a href={`mailto:${email}`}><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6"/></svg></span><b data-cms-field="copy.contactEmailLabel">{content.copy.contactEmailLabel}</b><small data-cms-field="contact.email">{email}</small></a><a href={instagram} target="_blank" rel="noreferrer"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.7" cy="6.7" r=".8"/></svg></span><b data-cms-field="copy.contactInstagramLabel">{content.copy.contactInstagramLabel}</b><small data-cms-field="contact.instagram">{content.contact.instagram}</small></a></div></section></div>
-    <SiteFooter contact={content.contact} services={content.services} copy={content.copy} logo={content.logo} />
+    <SiteFooter contact={content.contact} services={content.services} copy={content.copy} footerLogo={content.footerLogo} />
   </main>;
 }
 

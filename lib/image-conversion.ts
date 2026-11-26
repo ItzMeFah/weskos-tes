@@ -44,7 +44,7 @@ export async function convertLogoToTransparentWebP(file: File): Promise<File> {
   }
 
   try {
-    const scale = Math.min(1, 2048 / bitmap.width, 2048 / bitmap.height);
+    const scale = Math.min(1, 1024 / bitmap.width, 1024 / bitmap.height);
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));

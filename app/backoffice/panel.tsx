@@ -237,10 +237,11 @@ export default function BackofficePanel() {
     setBusy(false);
   }
 
-  async function uploadLogo(file: File | undefined) {
+  async function uploadLogo(file: File | undefined, target: "logo" | "footerLogo" = "logo") {
     if (!file) return;
+    const label = target === "footerLogo" ? "Footer logo" : "Header logo";
     setBusy(true); setMessage("Processing the logo and removing its light background…");
-    showBackofficeToast("Logo selected. Removing the background…", "info");
+    showBackofficeToast(`${label} selected. Removing the background…`, "info");
     try {
       const webp = await convertLogoToTransparentWebP(file);
       let logoUrl: string;
@@ -261,13 +262,13 @@ export default function BackofficePanel() {
         logoUrl = result.url;
       }
       suppressDraftToast.current = true;
-      const updatedContent = { ...contentRef.current, logo: logoUrl };
+      const updatedContent = { ...contentRef.current, [target]: logoUrl };
       contentRef.current = updatedContent;
       setContent(updatedContent);
       visualFrame.current?.contentWindow?.postMessage({ type: "weskos-admin-preview", content: updatedContent }, window.location.origin);
       suppressDraftToast.current = false;
-      setMessage(localPreview ? "Transparent logo added to the local draft. Save homepage to keep it in this browser." : "Transparent logo uploaded. Save homepage to publish it.");
-      showBackofficeToast(localPreview ? "Logo added to the local draft." : "Logo uploaded with a transparent background. Save the homepage to publish it.", "success");
+      setMessage(localPreview ? `${label} added to the local draft. Save homepage to keep it in this browser.` : `${label} uploaded. Save homepage to publish it.`);
+      showBackofficeToast(localPreview ? `${label} added to the local draft.` : `${label} uploaded with a transparent background. Save homepage to publish it.`, "success");
     } catch (error) {
       suppressDraftToast.current = false;
       const errorText = error instanceof Error ? error.message : "Logo upload failed.";
@@ -358,7 +359,7 @@ export default function BackofficePanel() {
       }
       const logoFile = event.data?.file;
       if (event.data?.type === "weskos-visual-logo-upload" && logoFile && typeof logoFile.type === "string" && typeof logoFile.arrayBuffer === "function") {
-        void uploadLogo(logoFile as File);
+        void uploadLogo(logoFile as File, event.data.area === "footerLogo" ? "footerLogo" : "logo");
       }
     };
     window.addEventListener("message", receiveVisualEdit);
@@ -385,7 +386,8 @@ export default function BackofficePanel() {
       </div>
     </div>}
     {activeTab === "photos" && <div className="admin-editor"><div className="editor-title"><span>02</span><div><h2>Website photos</h2><p>Replace, remove, and arrange every other homepage photo.</p></div></div>
-      <div className="media-manager"><div className="media-manager-heading"><div><b>Weskos logo</b><small>Background is removed automatically; the mark switches between dark and white with the site theme.</small></div><div className="media-row-actions"><label className="media-file-button">Replace logo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { void uploadLogo(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label><button type="button" onClick={() => update("logo", DEFAULT_HOME_CONTENT.logo)} disabled={busy}>Restore original</button></div></div><div className="logo-draft-preview"><img src={content.logo} alt="Current Weskos logo"/></div></div>
+      <div className="media-manager"><div className="media-manager-heading"><div><b>Header logo</b><small>Background is removed automatically; it switches between dark and white with the site theme.</small></div><div className="media-row-actions"><label className="media-file-button">Replace logo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { void uploadLogo(event.target.files?.[0], "logo"); event.currentTarget.value = ""; }}/></label><button type="button" onClick={() => update("logo", DEFAULT_HOME_CONTENT.logo)} disabled={busy}>Restore original</button></div></div><div className="logo-draft-preview"><img src={content.logo} alt="Current header logo"/></div></div>
+      <div className="media-manager"><div className="media-manager-heading"><div><b>Footer logo</b><small>Customizes the logo at the bottom independently from the header.</small></div><div className="media-row-actions"><label className="media-file-button">Replace logo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { void uploadLogo(event.target.files?.[0], "footerLogo"); event.currentTarget.value = ""; }}/></label><button type="button" onClick={() => update("footerLogo", DEFAULT_HOME_CONTENT.footerLogo)} disabled={busy}>Restore original</button></div></div><div className="logo-draft-preview logo-draft-preview-footer"><img src={content.footerLogo} alt="Current footer logo"/></div></div>
       <div className="media-manager"><div className="media-manager-heading"><div><b>Coast, property & location photos</b><small>New photos are added to the homepage photo story.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "coastAndLocation"); event.currentTarget.value = ""; }}/></label></div><div className="media-list">{([["apparel", "Krui landscape · 01", content.photos.apparel], ["surfGoods", "Krui landscape · 02", content.photos.surfGoods], ["manifesto", "Coastal feature", content.photos.manifesto], ["storefront", "Weskos location", content.photos.storefront]] as const).map(([area, label, src]) => <PhotoRow key={area} src={src} label={label} index={0} count={1} busy={busy} onUrl={(value) => updatePhoto(area, value)} onMove={() => undefined} onRemove={() => updatePhoto(area, "")} onFile={(file) => void uploadPhoto(file, area)}/>)}</div><div className="media-list">{(content.photos.coastAndLocation ?? []).map((src, index, coastPhotos) => <PhotoRow key={index} src={src} label="Coast & location" index={index} count={coastPhotos.length} busy={busy} onUrl={(value) => updatePhoto("coastAndLocation", coastPhotos.map((photo, i) => i === index ? value : photo))} onMove={(direction) => movePhoto("coastAndLocation", index, direction)} onRemove={() => updatePhoto("coastAndLocation", coastPhotos.filter((_, i) => i !== index))} onFile={(file) => void uploadPhoto(file, "coastAndLocation", index)}/>)}</div><div className="media-add-row"><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "coastAndLocation"); event.currentTarget.value = ""; }}/></label></div></div>
       <div className="media-manager"><div className="media-manager-heading"><div><b>Photo story gallery</b><small>Displayed in order on the homepage.</small></div><label className="media-file-button media-add-button">+ Add photo<input type="file" accept="image/*" disabled={busy} onChange={(event) => { void uploadPhoto(event.target.files?.[0], "gallery"); event.currentTarget.value = ""; }}/></label></div>
         <div className="media-list">{content.photos.gallery.map((src, index) => <PhotoRow key={`gallery-${index}`} src={src} label="Gallery" index={index} count={content.photos.gallery.length} busy={busy} onUrl={(value) => updatePhoto("gallery", content.photos.gallery.map((photo, i) => i === index ? value : photo))} onMove={(direction) => movePhoto("gallery", index, direction)} onRemove={() => updatePhoto("gallery", content.photos.gallery.filter((_, i) => i !== index))} onFile={(file) => void uploadPhoto(file, "gallery", index)}/>)}</div>
