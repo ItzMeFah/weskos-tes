@@ -37,7 +37,9 @@ function setContentAtPath(content: HomeContent, path: string, value: string): Ho
   return replace(content, 0) as HomeContent;
 }
 
-function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area: PhotoArea; onCancel: () => void; onConfirm: (file: File) => void }) {
+type CropArea = PhotoArea | "logo" | "footerLogo";
+
+function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area: CropArea; onCancel: () => void; onConfirm: (file: File) => void }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
@@ -46,7 +48,8 @@ function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area
   const [cropError, setCropError] = useState("");
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const ratio = PHOTO_CROP_RATIOS[area];
+  const isLogo = area === "logo" || area === "footerLogo";
+  const ratio = isLogo ? 4 : PHOTO_CROP_RATIOS[area];
   const coverScale = imageSize.width && imageSize.height && viewportSize.width && viewportSize.height
     ? Math.max(viewportSize.width / imageSize.width, viewportSize.height / imageSize.height) * zoom
     : 1;
@@ -119,13 +122,13 @@ function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area
   const maxFrameWidth = Math.min(640, 420 * ratio);
   return <div className="photo-crop-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className="photo-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-crop-title">
-      <header><div><h2 id="photo-crop-title">Adjust photo framing</h2><p>Drag to position the image, then scale it until the preview looks right.</p></div><button type="button" onClick={onCancel} aria-label="Close photo crop editor">×</button></header>
-      <div ref={viewportRef} className="photo-crop-viewport" style={{ aspectRatio: ratio, maxWidth: `${maxFrameWidth}px` }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stopDragging} onPointerCancel={stopDragging}>
-        {previewUrl && <img src={previewUrl} alt="Photo crop preview" draggable={false} onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} style={{ width: renderedWidth, height: renderedHeight, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}/>}<span className="photo-crop-guide" aria-hidden="true"/>
+      <header><div><h2 id="photo-crop-title">{isLogo ? "Adjust logo framing" : "Adjust photo framing"}</h2><p>Drag to position the image, then scale it until the preview looks right.</p></div><button type="button" onClick={onCancel} aria-label="Close image framing editor">×</button></header>
+      <div ref={viewportRef} className={`photo-crop-viewport${isLogo ? " photo-crop-viewport-logo" : ""}`} style={{ aspectRatio: ratio, maxWidth: `${maxFrameWidth}px` }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stopDragging} onPointerCancel={stopDragging}>
+        {previewUrl && <img src={previewUrl} alt={isLogo ? "Logo framing preview" : "Photo crop preview"} draggable={false} onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} style={{ width: renderedWidth, height: renderedHeight, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}/>}<span className="photo-crop-guide" aria-hidden="true"/>
       </div>
       <label className="photo-crop-scale">Scale <span>{zoom.toFixed(2)}×</span><input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(event) => { setZoom(Number(event.target.value)); setOffset({ x: 0, y: 0 }); }}/></label>
-      <p className="photo-crop-note">The frame shows exactly what will be kept. The rest of the photo will be removed.</p>{cropError && <p className="photo-crop-error" role="alert">{cropError}</p>}
-      <footer><button type="button" className="photo-crop-cancel" onClick={onCancel}>Cancel</button><button type="button" className="admin-button" onClick={() => void confirmCrop()} disabled={!imageSize.width}>Use this framing</button></footer>
+      <p className="photo-crop-note">{isLogo ? "This wide frame fits the header and footer. Confirm the position before the background is removed." : "The frame shows exactly what will be kept. The rest of the photo will be removed."}</p>{cropError && <p className="photo-crop-error" role="alert">{cropError}</p>}
+      <footer><button type="button" className="photo-crop-cancel" onClick={onCancel}>Cancel</button><button type="button" className="admin-button" onClick={() => void confirmCrop()} disabled={!imageSize.width}>{isLogo ? "Use this logo framing" : "Use this framing"}</button></footer>
     </section>
   </div>;
 }
@@ -151,7 +154,7 @@ export default function BackofficePanel() {
   const router = useRouter();
   const [status, setStatus] = useState<AdminStatus>("checking");
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
-  const [pendingCrop, setPendingCrop] = useState<{ file: File; area: PhotoArea; index?: number } | null>(null);
+  const [pendingCrop, setPendingCrop] = useState<{ file: File; area: CropArea; index?: number } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
@@ -334,8 +337,13 @@ export default function BackofficePanel() {
     setBusy(false);
   }
 
-  async function uploadLogo(file: File | undefined, target: "logo" | "footerLogo" = "logo") {
+  function uploadLogo(file: File | undefined, target: "logo" | "footerLogo" = "logo") {
     if (!file) return;
+    setPendingCrop({ file, area: target });
+    showBackofficeToast("Adjust the logo framing before it uploads.", "info");
+  }
+
+  async function saveLogo(file: File, target: "logo" | "footerLogo") {
     const label = target === "footerLogo" ? "Footer logo" : "Header logo";
     setBusy(true); setMessage("Processing the logo and removing its light background…");
     showBackofficeToast(`${label} selected. Removing the background…`, "info");
@@ -530,6 +538,6 @@ export default function BackofficePanel() {
       </section>
     </div>}
     <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>
-    {pendingCrop && <PhotoCropDialog file={pendingCrop.file} area={pendingCrop.area} onCancel={() => setPendingCrop(null)} onConfirm={(croppedFile) => { const { area, index } = pendingCrop; setPendingCrop(null); void savePhoto(croppedFile, area, index); }}/>}
+    {pendingCrop && <PhotoCropDialog file={pendingCrop.file} area={pendingCrop.area} onCancel={() => setPendingCrop(null)} onConfirm={(croppedFile) => { const { area, index } = pendingCrop; setPendingCrop(null); if (area === "logo" || area === "footerLogo") void saveLogo(croppedFile, area); else void savePhoto(croppedFile, area, index); }}/>}
     </section></main>;
 }
