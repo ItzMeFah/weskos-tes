@@ -14,6 +14,7 @@ type PhotoArea = "hero" | "gallery" | "coastAndLocation" | "apparel" | "surfGood
 type HomeSection = HomeContent["sectionOrder"][number];
 const SECTION_LABELS: Record<HomeSection, string> = { intro: "Introduction", services: "Services", photoStory: "Photo story", manifesto: "Feature banner", contact: "Contact" };
 const LOCAL_PREVIEW_KEY = "weskos-local-preview-content";
+const PHOTO_CROP_RATIOS: Record<PhotoArea, number> = { hero: 16 / 9, gallery: 1, coastAndLocation: 1, apparel: 4 / 3, surfGoods: 4 / 3, manifesto: 4 / 3, storefront: 4 / 3, boardArtwork: 1 };
 
 function setContentAtPath(content: HomeContent, path: string, value: string): HomeContent {
   if (!/^[\w.[\]-]+$/.test(path)) return content;
@@ -36,14 +37,97 @@ function setContentAtPath(content: HomeContent, path: string, value: string): Ho
   return replace(content, 0) as HomeContent;
 }
 
-async function localImageUrl(file: File): Promise<string> {
-  const webpFile = await convertImageToWebP(file);
-  return await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read this photo."));
-    reader.readAsDataURL(webpFile);
-  });
+function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area: PhotoArea; onCancel: () => void; onConfirm: (file: File) => void }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [cropError, setCropError] = useState("");
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const ratio = PHOTO_CROP_RATIOS[area];
+  const coverScale = imageSize.width && imageSize.height && viewportSize.width && viewportSize.height
+    ? Math.max(viewportSize.width / imageSize.width, viewportSize.height / imageSize.height) * zoom
+    : 1;
+  const renderedWidth = imageSize.width * coverScale;
+  const renderedHeight = imageSize.height * coverScale;
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const observer = new ResizeObserver(() => setViewportSize({ width: viewport.clientWidth, height: viewport.clientHeight }));
+    observer.observe(viewport);
+    setViewportSize({ width: viewport.clientWidth, height: viewport.clientHeight });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onCancel]);
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragStart.current = { x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStart.current || !viewportSize.width || !viewportSize.height) return;
+    const dx = event.clientX - dragStart.current.x;
+    const dy = event.clientY - dragStart.current.y;
+    dragStart.current = { x: event.clientX, y: event.clientY };
+    const maxX = Math.max(0, (renderedWidth - viewportSize.width) / 2);
+    const maxY = Math.max(0, (renderedHeight - viewportSize.height) / 2);
+    setOffset((current) => ({ x: Math.max(-maxX, Math.min(maxX, current.x + dx)), y: Math.max(-maxY, Math.min(maxY, current.y + dy)) }));
+  };
+  const stopDragging = () => { dragStart.current = null; };
+
+  async function confirmCrop() {
+    try {
+      if (!imageSize.width || !viewportSize.width || !viewportSize.height) return;
+      const sourceWidth = Math.min(imageSize.width, viewportSize.width / coverScale);
+      const sourceHeight = Math.min(imageSize.height, viewportSize.height / coverScale);
+      const sourceX = Math.max(0, Math.min(imageSize.width - sourceWidth, (imageSize.width - sourceWidth) / 2 - offset.x / coverScale));
+      const sourceY = Math.max(0, Math.min(imageSize.height - sourceHeight, (imageSize.height - sourceHeight) / 2 - offset.y / coverScale));
+      const outputWidth = Math.max(1, Math.min(2000, Math.round(sourceWidth)));
+      const outputHeight = Math.max(1, Math.round(outputWidth / ratio));
+      const canvas = document.createElement("canvas");
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Could not prepare this photo crop.");
+      const bitmap = await createImageBitmap(file);
+      try {
+        context.drawImage(bitmap, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
+      } finally {
+        bitmap.close();
+      }
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Could not create the cropped photo.")), "image/webp", 0.88));
+      onConfirm(new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "photo"}-framed.webp`, { type: "image/webp", lastModified: Date.now() }));
+    } catch (error) {
+      setCropError(error instanceof Error ? error.message : "Could not prepare this photo crop.");
+    }
+  }
+
+  const maxFrameWidth = Math.min(640, 420 * ratio);
+  return <div className="photo-crop-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
+    <section className="photo-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-crop-title">
+      <header><div><h2 id="photo-crop-title">Adjust photo framing</h2><p>Drag to position the image, then scale it until the preview looks right.</p></div><button type="button" onClick={onCancel} aria-label="Close photo crop editor">×</button></header>
+      <div ref={viewportRef} className="photo-crop-viewport" style={{ aspectRatio: ratio, maxWidth: `${maxFrameWidth}px` }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stopDragging} onPointerCancel={stopDragging}>
+        {previewUrl && <img src={previewUrl} alt="Photo crop preview" draggable={false} onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} style={{ width: renderedWidth, height: renderedHeight, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}/>}<span className="photo-crop-guide" aria-hidden="true"/>
+      </div>
+      <label className="photo-crop-scale">Scale <span>{zoom.toFixed(2)}×</span><input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(event) => { setZoom(Number(event.target.value)); setOffset({ x: 0, y: 0 }); }}/></label>
+      <p className="photo-crop-note">The frame shows exactly what will be kept. The rest of the photo will be removed.</p>{cropError && <p className="photo-crop-error" role="alert">{cropError}</p>}
+      <footer><button type="button" className="photo-crop-cancel" onClick={onCancel}>Cancel</button><button type="button" className="admin-button" onClick={() => void confirmCrop()} disabled={!imageSize.width}>Use this framing</button></footer>
+    </section>
+  </div>;
 }
 
 function PhotoRow({ src, label, index, count, busy, onUrl, onMove, onRemove, onFile, allowRemove = true }: {
@@ -67,6 +151,7 @@ export default function BackofficePanel() {
   const router = useRouter();
   const [status, setStatus] = useState<AdminStatus>("checking");
   const [content, setContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
+  const [pendingCrop, setPendingCrop] = useState<{ file: File; area: PhotoArea; index?: number } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(DEFAULT_HOME_CONTENT));
@@ -201,15 +286,27 @@ export default function BackofficePanel() {
     }
   }
 
-  async function uploadPhoto(file: File | undefined, area: PhotoArea, index?: number) {
+  function uploadPhoto(file: File | undefined, area: PhotoArea, index?: number) {
     if (!file) return;
+    setPendingCrop({ file, area, index });
+    showBackofficeToast("Adjust the photo framing before it uploads.", "info");
+  }
+
+  async function savePhoto(file: File, area: PhotoArea, index?: number) {
     setBusy(true); setMessage("");
     try {
+      const webp = file.type === "image/webp" ? file : await convertImageToWebP(file);
       let photoUrl: string;
-      if (localPreview) photoUrl = await localImageUrl(file);
+      if (localPreview) {
+        photoUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("Could not read this photo."));
+          reader.readAsDataURL(webp);
+        });
+      }
       else {
         if (status !== "admin") throw new Error("Sign in with an approved Weskos admin account to upload media.");
-        const webp = await convertImageToWebP(file);
         const form = new FormData();
         form.append("file", webp);
         const response = await authorizedFetch("/api/backoffice/media", { method: "POST", body: form });
@@ -433,5 +530,6 @@ export default function BackofficePanel() {
       </section>
     </div>}
     <div className="admin-savebar"><p role="status">{message || (isDirty ? "Unsaved changes" : "All changes saved.")}</p><button className="admin-button" onClick={saveContent} disabled={busy || !isDirty}>{busy ? "Saving…" : "Save homepage"}</button></div>
+    {pendingCrop && <PhotoCropDialog file={pendingCrop.file} area={pendingCrop.area} onCancel={() => setPendingCrop(null)} onConfirm={(croppedFile) => { const { area, index } = pendingCrop; setPendingCrop(null); void savePhoto(croppedFile, area, index); }}/>}
     </section></main>;
 }
