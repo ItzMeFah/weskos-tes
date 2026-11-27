@@ -42,6 +42,8 @@ type CropArea = PhotoArea | "logo" | "footerLogo";
 function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area: CropArea; onCancel: () => void; onConfirm: (file: File) => void }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const activePointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStart = useRef<{ distance: number; zoom: number; offset: { x: number; y: number }; anchor: { x: number; y: number } } | null>(null);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [previewUrl, setPreviewUrl] = useState("");
@@ -77,20 +79,76 @@ function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onCancel]);
 
+  const clampOffset = (nextZoom: number, nextOffset: { x: number; y: number }) => {
+    const scale = imageSize.width && imageSize.height && viewportSize.width && viewportSize.height
+      ? Math.max(viewportSize.width / imageSize.width, viewportSize.height / imageSize.height) * nextZoom
+      : 1;
+    const maxX = Math.max(0, (imageSize.width * scale - viewportSize.width) / 2);
+    const maxY = Math.max(0, (imageSize.height * scale - viewportSize.height) / 2);
+    return { x: Math.max(-maxX, Math.min(maxX, nextOffset.x)), y: Math.max(-maxY, Math.min(maxY, nextOffset.y)) };
+  };
+  const setZoomAround = (nextZoom: number, anchor = { x: 0, y: 0 }) => {
+    const boundedZoom = Math.max(1, Math.min(3, nextZoom));
+    const scale = boundedZoom / zoom;
+    setOffset(clampOffset(boundedZoom, { x: anchor.x - (anchor.x - offset.x) * scale, y: anchor.y - (anchor.y - offset.y) * scale }));
+    setZoom(boundedZoom);
+  };
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragStart.current = { x: event.clientX, y: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
+    activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (activePointers.current.size === 2) {
+      const [first, second] = [...activePointers.current.values()];
+      const rect = event.currentTarget.getBoundingClientRect();
+      pinchStart.current = {
+        distance: Math.hypot(second.x - first.x, second.y - first.y),
+        zoom,
+        offset: { ...offset },
+        anchor: { x: (first.x + second.x) / 2 - rect.left - rect.width / 2, y: (first.y + second.y) / 2 - rect.top - rect.height / 2 },
+      };
+      dragStart.current = null;
+    } else {
+      dragStart.current = { x: event.clientX, y: event.clientY };
+    }
   };
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointers.current.has(event.pointerId)) activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pinchStart.current && activePointers.current.size >= 2) {
+      const [first, second] = [...activePointers.current.values()];
+      const distance = Math.hypot(second.x - first.x, second.y - first.y);
+      const nextZoom = Math.max(1, Math.min(3, pinchStart.current.zoom * distance / Math.max(1, pinchStart.current.distance)));
+      const scale = nextZoom / pinchStart.current.zoom;
+      const nextOffset = {
+        x: pinchStart.current.anchor.x - (pinchStart.current.anchor.x - pinchStart.current.offset.x) * scale,
+        y: pinchStart.current.anchor.y - (pinchStart.current.anchor.y - pinchStart.current.offset.y) * scale,
+      };
+      setZoom(nextZoom);
+      setOffset(clampOffset(nextZoom, nextOffset));
+      return;
+    }
     if (!dragStart.current || !viewportSize.width || !viewportSize.height) return;
     const dx = event.clientX - dragStart.current.x;
     const dy = event.clientY - dragStart.current.y;
     dragStart.current = { x: event.clientX, y: event.clientY };
-    const maxX = Math.max(0, (renderedWidth - viewportSize.width) / 2);
-    const maxY = Math.max(0, (renderedHeight - viewportSize.height) / 2);
-    setOffset((current) => ({ x: Math.max(-maxX, Math.min(maxX, current.x + dx)), y: Math.max(-maxY, Math.min(maxY, current.y + dy)) }));
+    setOffset((current) => clampOffset(zoom, { x: current.x + dx, y: current.y + dy }));
   };
-  const stopDragging = () => { dragStart.current = null; };
+  const stopDragging = (event: React.PointerEvent<HTMLDivElement>) => {
+    activePointers.current.delete(event.pointerId);
+    if (activePointers.current.size < 2) pinchStart.current = null;
+    dragStart.current = activePointers.current.size === 1 ? [...activePointers.current.values()][0] : null;
+  };
+  const onWheelZoom = (event: WheelEvent) => {
+    event.preventDefault();
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const rect = viewport.getBoundingClientRect();
+    setZoomAround(zoom * (event.deltaY < 0 ? 1.08 : 1 / 1.08), { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 });
+  };
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.addEventListener("wheel", onWheelZoom, { passive: false });
+    return () => viewport.removeEventListener("wheel", onWheelZoom);
+  }, [onWheelZoom]);
 
   async function confirmCrop() {
     try {
@@ -122,11 +180,11 @@ function PhotoCropDialog({ file, area, onCancel, onConfirm }: { file: File; area
   const maxFrameWidth = Math.min(640, 420 * ratio);
   return <div className="photo-crop-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className="photo-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-crop-title">
-      <header><div><h2 id="photo-crop-title">{isLogo ? "Adjust logo framing" : "Adjust photo framing"}</h2><p>Drag to position the image, then scale it until the preview looks right.</p></div><button type="button" onClick={onCancel} aria-label="Close image framing editor">×</button></header>
+      <header><div><h2 id="photo-crop-title">{isLogo ? "Adjust logo framing" : "Adjust photo framing"}</h2><p>Move the image inside the frame and set its size before applying.</p></div><button type="button" onClick={onCancel} aria-label="Close image framing editor">×</button></header>
       <div ref={viewportRef} className={`photo-crop-viewport${isLogo ? " photo-crop-viewport-logo" : ""}`} style={{ aspectRatio: ratio, maxWidth: `${maxFrameWidth}px` }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stopDragging} onPointerCancel={stopDragging}>
         {previewUrl && <img src={previewUrl} alt={isLogo ? "Logo framing preview" : "Photo crop preview"} draggable={false} onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} style={{ width: renderedWidth, height: renderedHeight, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}/>}<span className="photo-crop-guide" aria-hidden="true"/>
       </div>
-      <label className="photo-crop-scale">Scale <span>{zoom.toFixed(2)}×</span><input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(event) => { setZoom(Number(event.target.value)); setOffset({ x: 0, y: 0 }); }}/></label>
+      <div className="photo-crop-zoom" aria-label="Image zoom controls"><button type="button" onClick={() => setZoomAround(zoom / 1.15)} aria-label="Zoom out" disabled={zoom <= 1}>−</button><output aria-live="polite">{Math.round(zoom * 100)}%</output><button type="button" onClick={() => setZoomAround(zoom * 1.15)} aria-label="Zoom in" disabled={zoom >= 3}>+</button><span>Drag to position · scroll or pinch to zoom</span></div>
       <p className="photo-crop-note">{isLogo ? "This wide frame fits the header and footer. Confirm the position before the background is removed." : "The frame shows exactly what will be kept. The rest of the photo will be removed."}</p>{cropError && <p className="photo-crop-error" role="alert">{cropError}</p>}
       <footer><button type="button" className="photo-crop-cancel" onClick={onCancel}>Cancel</button><button type="button" className="admin-button" onClick={() => void confirmCrop()} disabled={!imageSize.width}>{isLogo ? "Use this logo framing" : "Use this framing"}</button></footer>
     </section>
